@@ -60,7 +60,7 @@ describe('upgradePackageJson', () => {
   });
 
   it('should skip packages with * version and log it', async () => {
-    const consoleSpy = vi.spyOn(console, 'log');
+    const consoleSpy = vi.spyOn(console, 'warn');
     const filePath = '/test/package.json';
     const packageJson = {
       dependencies: {
@@ -75,7 +75,7 @@ describe('upgradePackageJson', () => {
 
     await upgradePackageJson(filePath);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Skipping some-pkg as it has '*' version");
+    expect(consoleSpy).toHaveBeenCalledWith("WARN: Skipping some-pkg as it has '*' version");
 
     // other-pkg should be upgraded
     expect(getLatestVersion).toHaveBeenCalledWith('other-pkg');
