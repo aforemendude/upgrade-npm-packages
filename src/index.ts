@@ -35,7 +35,7 @@ const main = async (): Promise<void> => {
     const packageJsonFiles = await findPackageJsonFiles(cwd);
 
     if (packageJsonFiles.length === 0) {
-      console.log('No package.json files found.');
+      console.error('ERROR: No package.json files found.');
       return;
     }
 
@@ -51,7 +51,7 @@ const main = async (): Promise<void> => {
 
     console.log('Finished processing all package.json files.');
   } catch (error) {
-    console.error('An error occurred:', error);
+    console.error('ERROR:', error);
     process.exit(1);
   }
 };

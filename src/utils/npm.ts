@@ -17,7 +17,7 @@ export const getLatestVersion = async (packageName: string): Promise<string> => 
     const { stdout } = await execNpm(['view', packageName, 'version']);
     return stdout.toString().trim() || '';
   } catch (error) {
-    console.warn(`Could not fetch the latest version for ${packageName}. Skipping...`);
+    console.error(`ERROR: Could not fetch the latest version for ${packageName}. Skipping...`);
     return '';
   }
 };
@@ -31,7 +31,7 @@ export const getLatestVersionOfMajor = async (packageName: string, major: number
     }
     return typeof versions === 'string' ? versions : '';
   } catch (error) {
-    console.warn(`Could not fetch versions for ${packageName}@${major}. Skipping...`);
+    console.error(`ERROR: Could not fetch versions for ${packageName}@${major}. Skipping...`);
     return '';
   }
 };

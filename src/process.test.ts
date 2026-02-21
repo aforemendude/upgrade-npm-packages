@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { upgradePackageJson } from './process';
-import { installPackages } from './utils/npm';
+import { installPackages, getLatestVersion } from './utils/npm';
 
 vi.mock('fs/promises', async () => {
   const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
@@ -57,5 +57,32 @@ describe('upgradePackageJson', () => {
 
     await expect(upgradePackageJson(filePath)).resolves.not.toThrow();
     expect(installPackages).toHaveBeenCalled();
+  });
+
+  it('should skip packages with * version and log it', async () => {
+    const consoleSpy = vi.spyOn(console, 'log');
+    const filePath = '/test/package.json';
+    const packageJson = {
+      dependencies: {
+        'some-pkg': '*',
+        'other-pkg': '1.0.0',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(consoleSpy).toHaveBeenCalledWith("Skipping some-pkg as it has '*' version");
+
+    // other-pkg should be upgraded
+    expect(getLatestVersion).toHaveBeenCalledWith('other-pkg');
+
+    // some-pkg should NOT be requested
+    expect(getLatestVersion).not.toHaveBeenCalledWith('some-pkg');
+
+    consoleSpy.mockRestore();
   });
 });

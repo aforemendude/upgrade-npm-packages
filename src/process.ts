@@ -13,6 +13,11 @@ const upgradeSection = async (section: Record<string, string> | undefined) => {
   for (const pkg of packages) {
     const currentRef = section[pkg];
 
+    if (currentRef === '*') {
+      console.warn(`WARN: Skipping ${pkg} as it has '*' version`);
+      continue;
+    }
+
     const majorMatch = currentRef!.match(/(\d+)/);
     const currentMajor = majorMatch ? parseInt(majorMatch[0], 10) : null;
 
@@ -50,7 +55,7 @@ export const upgradePackageJson = async (filePath: string): Promise<void> => {
       console.log(`Deleted ${lockfilePath}`);
     } catch (e: any) {
       if (e.code !== 'ENOENT') {
-        console.warn(`Failed to delete ${lockfilePath}:`, e.message);
+        console.warn(`WARN: Failed to delete ${lockfilePath}:`, e.message);
       }
     }
 
@@ -59,7 +64,7 @@ export const upgradePackageJson = async (filePath: string): Promise<void> => {
 
     console.log(`Successfully refreshed lockfile in ${dir}`);
   } catch (error) {
-    console.error(`Error processing ${filePath}:`, error);
+    console.error(`ERROR: Unable to process ${filePath}:`, error);
     throw error;
   }
 };
