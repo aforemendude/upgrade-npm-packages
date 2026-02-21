@@ -1,1 +1,1 @@
-export const SAME_MAJOR_UPGRADE_PACKAGES = new Set(['@types/node', 'eslint']);
+export const SAME_MAJOR_UPGRADE_PACKAGES = new Set(['@eslint/js', '@types/node', 'eslint']);
