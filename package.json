@@ -2,8 +2,11 @@
   "bin": {
     "upgrade-npm-packages": "./dist/index.js"
   },
+  "dependencies": {
+    "cross-spawn": "7.0.6"
+  },
   "devDependencies": {
-    "@types/cross-spawn": "^6.0.6",
+    "@types/cross-spawn": "6.0.6",
     "@types/node": "24.10.13",
     "prettier": "3.8.1",
     "typescript": "5.9.3",
@@ -19,8 +22,5 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "version": "1.0.0",
-  "dependencies": {
-    "cross-spawn": "^7.0.6"
-  }
+  "version": "1.0.0"
 }
