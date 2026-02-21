@@ -1,12 +1,8 @@
-import { execFile } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { promisify } from 'util';
 import { SAME_MAJOR_UPGRADE_PACKAGES } from './config';
 import { stringify } from './utils/json';
-import { getLatestVersion, getLatestVersionOfMajor } from './utils/npm';
-
-const execFileAsync = promisify(execFile);
+import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './utils/npm';
 
 const upgradeSection = async (section: Record<string, string> | undefined) => {
   if (!section) {
@@ -59,7 +55,7 @@ export const upgradePackageJson = async (filePath: string): Promise<void> => {
     }
 
     console.log(`Running npm install in ${dir}...`);
-    await execFileAsync('npm', ['install'], { cwd: dir });
+    await installPackages(dir);
 
     console.log(`Successfully refreshed lockfile in ${dir}`);
   } catch (error) {
