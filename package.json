@@ -2,10 +2,12 @@
   "name": "upgrade-npm-packages",
   "private": true,
   "version": "1.0.0",
-  "main": "dist/upgrade.js",
+  "bin": {
+    "upgrade-npm-packages": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/upgrade.js",
+    "start": "node dist/index.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
