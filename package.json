@@ -1,22 +1,22 @@
 {
-  "name": "upgrade-npm-packages",
-  "private": true,
-  "version": "1.0.0",
   "bin": {
     "upgrade-npm-packages": "./dist/index.js"
   },
+  "devDependencies": {
+    "@types/node": "24.10.13",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
+    "vitest": "4.0.18"
+  },
+  "name": "upgrade-npm-packages",
+  "private": true,
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "devDependencies": {
-    "@types/node": "^25.3.0",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
-  }
+  "version": "1.0.0"
 }

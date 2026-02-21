@@ -7,8 +7,6 @@ A tool to recursively search for `package.json` files and upgrade all packages t
 To use this tool globally, you can clone the repository and use `npm link`:
 
 ```bash
-git clone <repository-url>
-cd upgrade-npm-packages
 npm install
 npm run build
 npm link
