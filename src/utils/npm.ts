@@ -1,21 +1,32 @@
-import { execFile, ExecFileOptions } from 'child_process';
-import { platform } from 'os';
-import { promisify } from 'util';
+import spawn from 'cross-spawn';
+import { ExecFileOptions } from 'child_process';
 import logger from './logger';
 
-const execFileAsync = promisify(execFile);
-
-const execNpm = async (args: string[], options: ExecFileOptions = {}) => {
-  const isWin = platform() === 'win32';
-  return execFileAsync(isWin ? 'npm.cmd' : 'npm', args, {
-    ...options,
-    shell: isWin ? true : options.shell,
+const runNpm = (args: string[], options: ExecFileOptions = {}): Promise<{ stdout: string; stderr: string }> => {
+  return new Promise((resolve, reject) => {
+    const child = spawn('npm', args, { ...options, shell: false });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (data) => {
+      stdout += data;
+    });
+    child.stderr?.on('data', (data) => {
+      stderr += data;
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`npm ${args[0]} exited with code ${code}\n${stderr}`));
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
   });
 };
 
 export const getLatestVersion = async (packageName: string): Promise<string> => {
   try {
-    const { stdout } = await execNpm(['view', packageName, 'version']);
+    const { stdout } = await runNpm(['view', packageName, 'version']);
     return stdout.toString().trim() || '';
   } catch (error) {
     logger.error(`Could not fetch the latest version for ${packageName}. Skipping...`);
@@ -25,7 +36,7 @@ export const getLatestVersion = async (packageName: string): Promise<string> => 
 
 export const getLatestVersionOfMajor = async (packageName: string, major: number): Promise<string> => {
   try {
-    const { stdout } = await execNpm(['view', `${packageName}@${major}`, 'version', '--json']);
+    const { stdout } = await runNpm(['view', `${packageName}@${major}`, 'version', '--json']);
     const versions = JSON.parse(stdout.toString() || '""');
     if (Array.isArray(versions)) {
       return versions[versions.length - 1] || '';
@@ -38,5 +49,5 @@ export const getLatestVersionOfMajor = async (packageName: string, major: number
 };
 
 export const installPackages = async (cwd: string): Promise<void> => {
-  await execNpm(['install'], { cwd });
+  await runNpm(['install'], { cwd });
 };

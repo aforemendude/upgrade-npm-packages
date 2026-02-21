@@ -1,37 +1,54 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { execFile } from 'child_process';
-import { platform } from 'os';
+import spawn from 'cross-spawn';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './npm';
+import { EventEmitter } from 'events';
+import { Readable } from 'stream';
 
-vi.mock('child_process', () => ({
-  execFile: vi.fn((_cmd: string, args: string[], optionsOrCallback: any, callback?: any) => {
-    const cb = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+vi.mock('cross-spawn', () => ({
+  default: vi.fn(),
+}));
+
+function createMockChild(stdout: string, code = 0) {
+  const child = new EventEmitter() as EventEmitter & { stdout: Readable; stderr: Readable };
+  child.stdout = new Readable({ read() {} });
+  child.stderr = new Readable({ read() {} });
+  setImmediate(() => {
+    child.stdout.push(stdout);
+    child.stdout.push(null);
+    child.stderr.push(null);
+    child.emit('close', code);
+  });
+  return child;
+}
+
+function setupSpawnMock() {
+  vi.mocked(spawn).mockImplementation((_cmd, args) => {
+    const a = args as string[];
     // getLatestVersion
-    if (args[0] === 'view' && args[1] === 'typescript' && args[2] === 'version') {
-      cb(null, { stdout: '5.0.0\n' });
+    if (a[0] === 'view' && a[1] === 'typescript' && a[2] === 'version') {
+      return createMockChild('5.0.0\n') as any;
     }
     // getLatestVersionOfMajor success (array)
-    else if (args[0] === 'view' && args[1] === '@types/node@18' && args[2] === 'version' && args[3] === '--json') {
-      cb(null, { stdout: '["18.0.0", "18.1.1"]\n' });
+    if (a[0] === 'view' && a[1] === '@types/node@18' && a[2] === 'version' && a[3] === '--json') {
+      return createMockChild('["18.0.0", "18.1.1"]\n') as any;
     }
     // getLatestVersionOfMajor success (string)
-    else if (args[0] === 'view' && args[1] === '@types/node@20' && args[2] === 'version' && args[3] === '--json') {
-      cb(null, { stdout: '"20.0.0"\n' });
+    if (a[0] === 'view' && a[1] === '@types/node@20' && a[2] === 'version' && a[3] === '--json') {
+      return createMockChild('"20.0.0"\n') as any;
     }
     // installPackages
-    else if (args[0] === 'install') {
-      cb(null, { stdout: 'added 1 package\n' });
+    if (a[0] === 'install') {
+      return createMockChild('added 1 package\n') as any;
     }
-    // Mock error
-    else {
-      cb(new Error('Mock error'), { stdout: '' });
-    }
-  }),
-}));
+    // error
+    return createMockChild('', 1) as any;
+  });
+}
 
 describe('npm util', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setupSpawnMock();
   });
 
   describe('getLatestVersion', () => {
@@ -69,20 +86,14 @@ describe('npm util', () => {
     });
   });
 
-  describe('Windows support', () => {
-    it('should use shell: true on Windows', async () => {
+  describe('cross-platform support', () => {
+    it('should spawn npm with shell: false', async () => {
       await getLatestVersion('typescript');
-      const isWin = platform() === 'win32';
-      const lastCall = vi.mocked(execFile).mock.calls[0];
-      expect(lastCall).toBeDefined();
-      const options = lastCall![2];
-
-      if (isWin) {
-        expect(options).toMatchObject({ shell: true });
-      } else {
-        // On non-windows, we don't force shell: true unless passed in
-        expect(options?.shell).toBeUndefined();
-      }
+      expect(spawn).toHaveBeenCalledWith(
+        'npm',
+        ['view', 'typescript', 'version'],
+        expect.objectContaining({ shell: false }),
+      );
     });
   });
 });
