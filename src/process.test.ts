@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'fs/promises';
+import * as path from 'path';
 import { upgradePackageJson } from './process';
-import { execFile } from 'child_process';
+import { installPackages } from './utils/npm';
 
 vi.mock('fs/promises', async () => {
   const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
@@ -13,19 +14,10 @@ vi.mock('fs/promises', async () => {
   };
 });
 
-vi.mock('child_process', () => ({
-  execFile: vi.fn((_cmd, _args, opts, cb) => {
-    if (typeof opts === 'function') {
-      opts(null, { stdout: '', stderr: '' });
-    } else {
-      cb(null, { stdout: '', stderr: '' });
-    }
-  }),
-}));
-
 vi.mock('./utils/npm', () => ({
   getLatestVersion: vi.fn().mockResolvedValue('2.0.0'),
   getLatestVersionOfMajor: vi.fn().mockResolvedValue('1.5.0'),
+  installPackages: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('./utils/json', () => ({
@@ -52,13 +44,8 @@ describe('upgradePackageJson', () => {
     await upgradePackageJson(filePath);
 
     expect(fs.writeFile).toHaveBeenCalledWith(filePath, expect.any(String), 'utf-8');
-    expect(fs.unlink).toHaveBeenCalledWith('/test/package-lock.json');
-    expect(execFile).toHaveBeenCalledWith(
-      'npm',
-      ['install'],
-      expect.objectContaining({ cwd: '/test' }),
-      expect.any(Function),
-    );
+    expect(fs.unlink).toHaveBeenCalledWith(path.join('/test', 'package-lock.json'));
+    expect(installPackages).toHaveBeenCalledWith('/test');
   });
 
   it('should not throw if package-lock.json does not exist', async () => {
@@ -69,6 +56,6 @@ describe('upgradePackageJson', () => {
     (fs.unlink as any).mockRejectedValue({ code: 'ENOENT' });
 
     await expect(upgradePackageJson(filePath)).resolves.not.toThrow();
-    expect(execFile).toHaveBeenCalled();
+    expect(installPackages).toHaveBeenCalled();
   });
 });

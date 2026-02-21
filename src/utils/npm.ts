@@ -1,14 +1,21 @@
-import { execFile } from 'child_process';
+import { execFile, ExecFileOptions } from 'child_process';
 import { platform } from 'os';
 import { promisify } from 'util';
 
-const NPM_COMMAND = platform() === 'win32' ? 'npm.cmd' : 'npm';
-
 const execFileAsync = promisify(execFile);
+
+const execNpm = async (args: string[], options: ExecFileOptions = {}) => {
+  const isWin = platform() === 'win32';
+  return execFileAsync(isWin ? 'npm.cmd' : 'npm', args, {
+    ...options,
+    shell: isWin ? true : options.shell,
+  });
+};
+
 export const getLatestVersion = async (packageName: string): Promise<string> => {
   try {
-    const { stdout } = await execFileAsync(NPM_COMMAND, ['view', packageName, 'version']);
-    return stdout.trim();
+    const { stdout } = await execNpm(['view', packageName, 'version']);
+    return stdout.toString().trim() || '';
   } catch (error) {
     console.warn(`Could not fetch the latest version for ${packageName}. Skipping...`);
     return '';
@@ -17,8 +24,8 @@ export const getLatestVersion = async (packageName: string): Promise<string> => 
 
 export const getLatestVersionOfMajor = async (packageName: string, major: number): Promise<string> => {
   try {
-    const { stdout } = await execFileAsync(NPM_COMMAND, ['view', `${packageName}@${major}`, 'version', '--json']);
-    const versions = JSON.parse(stdout);
+    const { stdout } = await execNpm(['view', `${packageName}@${major}`, 'version', '--json']);
+    const versions = JSON.parse(stdout.toString() || '""');
     if (Array.isArray(versions)) {
       return versions[versions.length - 1] || '';
     }
@@ -30,5 +37,5 @@ export const getLatestVersionOfMajor = async (packageName: string, major: number
 };
 
 export const installPackages = async (cwd: string): Promise<void> => {
-  await execFileAsync(NPM_COMMAND, ['install'], { cwd });
+  await execNpm(['install'], { cwd });
 };

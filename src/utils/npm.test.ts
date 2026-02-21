@@ -1,4 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { execFile } from 'child_process';
+import { platform } from 'os';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './npm';
 
 vi.mock('child_process', () => ({
@@ -28,6 +30,10 @@ vi.mock('child_process', () => ({
 }));
 
 describe('npm util', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('getLatestVersion', () => {
     it('should fetch latest version', async () => {
       const version = await getLatestVersion('typescript');
@@ -60,6 +66,23 @@ describe('npm util', () => {
   describe('installPackages', () => {
     it('should run npm install', async () => {
       await expect(installPackages('./')).resolves.not.toThrow();
+    });
+  });
+
+  describe('Windows support', () => {
+    it('should use shell: true on Windows', async () => {
+      await getLatestVersion('typescript');
+      const isWin = platform() === 'win32';
+      const lastCall = vi.mocked(execFile).mock.calls[0];
+      expect(lastCall).toBeDefined();
+      const options = lastCall![2];
+
+      if (isWin) {
+        expect(options).toMatchObject({ shell: true });
+      } else {
+        // On non-windows, we don't force shell: true unless passed in
+        expect(options?.shell).toBeUndefined();
+      }
     });
   });
 });
