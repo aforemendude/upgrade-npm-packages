@@ -6,7 +6,7 @@ export const stringify = (object: any): string => {
       if (shouldCollectKeys) {
         allKeys.add(key);
       }
-      if (null !== obj[key] && typeof obj[key] === "object") {
+      if (null !== obj[key] && typeof obj[key] === 'object') {
         collectKeys(obj[key]);
       }
     }
