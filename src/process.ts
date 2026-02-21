@@ -3,6 +3,7 @@ import * as path from 'path';
 import { SAME_MAJOR_UPGRADE_PACKAGES } from './config';
 import { stringify } from './utils/json';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './utils/npm';
+import { logger } from './utils/logger';
 
 const upgradeSection = async (section: Record<string, string> | undefined) => {
   if (!section) {
@@ -14,7 +15,7 @@ const upgradeSection = async (section: Record<string, string> | undefined) => {
     const currentRef = section[pkg];
 
     if (currentRef === '*') {
-      console.warn(`WARN: Skipping ${pkg} as it has '*' version`);
+      logger.warn(`Skipping ${pkg} as it has '*' version`);
       continue;
     }
 
@@ -45,26 +46,26 @@ export const upgradePackageJson = async (filePath: string): Promise<void> => {
 
     const formattedJson = stringify(packageJson);
     await fs.writeFile(filePath, formattedJson, 'utf-8');
-    console.log(`Successfully upgraded packages in ${filePath}`);
+    logger.success(`Successfully upgraded packages in ${filePath}`);
 
     const dir = path.dirname(filePath);
     const lockfilePath = path.join(dir, 'package-lock.json');
 
     try {
       await fs.unlink(lockfilePath);
-      console.log(`Deleted ${lockfilePath}`);
+      logger.info(`Deleted ${lockfilePath}`);
     } catch (e: any) {
       if (e.code !== 'ENOENT') {
-        console.warn(`WARN: Failed to delete ${lockfilePath}:`, e.message);
+        logger.warn(`Failed to delete ${lockfilePath}: ${e.message}`);
       }
     }
 
-    console.log(`Running npm install in ${dir}...`);
+    logger.info(`Running npm install in ${dir}...`);
     await installPackages(dir);
 
-    console.log(`Successfully refreshed lockfile in ${dir}`);
+    logger.success(`Successfully refreshed lockfile in ${dir}`);
   } catch (error) {
-    console.error(`ERROR: Unable to process ${filePath}:`, error);
+    logger.error(`Unable to process ${filePath}:`, error instanceof Error ? error.message : String(error));
     throw error;
   }
 };

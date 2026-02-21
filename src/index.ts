@@ -2,6 +2,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { upgradePackageJson } from './process';
+import { logger } from './utils/logger';
 
 const findPackageJsonFiles = async (startingDir: string): Promise<string[]> => {
   const results: string[] = [];
@@ -29,29 +30,29 @@ const findPackageJsonFiles = async (startingDir: string): Promise<string[]> => {
 
 const main = async (): Promise<void> => {
   const cwd = process.cwd();
-  console.log(`Starting search for package.json files in ${cwd}...`);
+  logger.info(`Starting search for package.json files in ${cwd}...`);
 
   try {
     const packageJsonFiles = await findPackageJsonFiles(cwd);
 
     if (packageJsonFiles.length === 0) {
-      console.error('ERROR: No package.json files found.');
+      logger.error('No package.json files found.');
       return;
     }
 
-    console.log(`Found ${packageJsonFiles.length} package.json files:`);
+    logger.info(`Found ${packageJsonFiles.length} package.json files:`);
     for (const file of packageJsonFiles) {
-      console.log(`- ${file}`);
+      logger.info(`- ${file}`);
     }
 
     for (const file of packageJsonFiles) {
-      console.log(`Processing ${file}...`);
+      logger.info(`Processing ${file}...`);
       await upgradePackageJson(file);
     }
 
-    console.log('Finished processing all package.json files.');
+    logger.success('Finished processing all package.json files.');
   } catch (error) {
-    console.error('ERROR:', error);
+    logger.error('Unhandled error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 };
