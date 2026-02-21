@@ -1,0 +1,14 @@
+{
+  "name": "upgrade-npm-packages",
+  "private": true,
+  "version": "1.0.0",
+  "main": "dist/upgrade.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/upgrade.js"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "typescript": "^5.9.3"
+  }
+}
