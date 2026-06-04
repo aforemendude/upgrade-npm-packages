@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { name, version } from '../package.json';
 import { upgradePackageJson } from './process';
 import { logger } from './utils/logger';
 
@@ -29,6 +31,8 @@ const findPackageJsonFiles = async (startingDir: string): Promise<string[]> => {
 };
 
 const main = async (): Promise<void> => {
+  logger.info(`${name} ${version}`);
+
   const cwd = process.cwd();
   logger.info(`Starting search for package.json files in ${cwd}...`);
 
