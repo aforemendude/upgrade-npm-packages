@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { upgradePackageJson } from './process';
-import { installPackages, getLatestVersion } from './utils/npm';
+import { installPackages, getLatestVersion, getLatestVersionOfMajor } from './utils/npm';
 import { logger } from './utils/logger';
 
 vi.mock('fs/promises', async () => {
@@ -22,7 +22,7 @@ vi.mock('./utils/npm', () => ({
 }));
 
 vi.mock('./utils/json', () => ({
-  stringify: vi.fn().mockReturnValue('{}'),
+  stringify: vi.fn((value) => JSON.stringify(value)),
 }));
 
 vi.mock('./utils/logger', () => ({
@@ -53,6 +53,7 @@ describe('upgradePackageJson', () => {
 
     await upgradePackageJson(filePath);
 
+    expect(getLatestVersion).toHaveBeenCalledWith('some-pkg', '1.0.0');
     expect(fs.writeFile).toHaveBeenCalledWith(filePath, expect.any(String), 'utf-8');
     expect(fs.unlink).toHaveBeenCalledWith(path.join('/test', 'package-lock.json'));
     expect(installPackages).toHaveBeenCalledWith('/test');
@@ -87,9 +88,46 @@ describe('upgradePackageJson', () => {
     expect(logger.warn).toHaveBeenCalledWith("Skipping some-pkg as it has '*' version");
 
     // other-pkg should be upgraded
-    expect(getLatestVersion).toHaveBeenCalledWith('other-pkg');
+    expect(getLatestVersion).toHaveBeenCalledWith('other-pkg', '1.0.0');
 
     // some-pkg should NOT be requested
-    expect(getLatestVersion).not.toHaveBeenCalledWith('some-pkg');
+    expect(vi.mocked(getLatestVersion).mock.calls.some(([packageName]) => packageName === 'some-pkg')).toBe(false);
+  });
+
+  it('should pass the current version to same-major upgrade packages', async () => {
+    const filePath = '/test/package.json';
+    const packageJson = {
+      devDependencies: {
+        '@types/node': '^18.1.0',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '18.1.0');
+    expect(getLatestVersion).not.toHaveBeenCalled();
+  });
+
+  it('should keep the current package reference when no eligible upgrade is returned', async () => {
+    vi.mocked(getLatestVersion).mockResolvedValueOnce('');
+    const filePath = '/test/package.json';
+    const packageJson = {
+      dependencies: {
+        'some-pkg': '^2.0.0',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
+    expect(writtenPackageJson.dependencies['some-pkg']).toBe('^2.0.0');
   });
 });

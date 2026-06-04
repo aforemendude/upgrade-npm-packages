@@ -5,6 +5,24 @@ import { stringify } from './utils/json';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './utils/npm';
 import { logger } from './utils/logger';
 
+const extractVersion = (versionRef: string): string | undefined => {
+  const match = versionRef.match(/(\d+)\.(\d+)\.(\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)/);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return undefined;
+  }
+
+  return `${match[1]}.${match[2]}.${match[3]}`;
+};
+
+const getMajorVersion = (version: string | undefined): number | null => {
+  if (!version) {
+    return null;
+  }
+
+  const major = version.split('.')[0];
+  return major ? parseInt(major, 10) : null;
+};
+
 const upgradeSection = async (section: Record<string, string> | undefined) => {
   if (!section) {
     return;
@@ -14,20 +32,24 @@ const upgradeSection = async (section: Record<string, string> | undefined) => {
   for (const pkg of packages) {
     const currentRef = section[pkg];
 
+    if (!currentRef) {
+      continue;
+    }
+
     if (currentRef === '*') {
       logger.warn(`Skipping ${pkg} as it has '*' version`);
       continue;
     }
 
-    const majorMatch = currentRef!.match(/(\d+)/);
-    const currentMajor = majorMatch ? parseInt(majorMatch[0], 10) : null;
+    const currentVersion = extractVersion(currentRef);
+    const currentMajor = getMajorVersion(currentVersion);
 
     let latestVersion = '';
 
     if (SAME_MAJOR_UPGRADE_PACKAGES.has(pkg) && currentMajor !== null) {
-      latestVersion = await getLatestVersionOfMajor(pkg, currentMajor);
+      latestVersion = await getLatestVersionOfMajor(pkg, currentMajor, currentVersion);
     } else {
-      latestVersion = await getLatestVersion(pkg);
+      latestVersion = await getLatestVersion(pkg, currentVersion);
     }
 
     if (latestVersion) {

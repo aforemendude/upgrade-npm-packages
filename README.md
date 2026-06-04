@@ -1,7 +1,7 @@
 # Upgrade NPM Packages
 
-A tool to recursively search for `package.json` files and upgrade all packages to their latest versions. It also
-automatically refreshes the lockfile by deleting `package-lock.json` and running `npm install`.
+A tool to recursively search for `package.json` files and upgrade all packages to the latest versions that are at least
+7 days old. It also automatically refreshes the lockfile by deleting `package-lock.json` and running `npm install`.
 
 ## Installation
 
@@ -25,14 +25,17 @@ upgrade-npm-packages
 The tool will search for `package.json` files in the current directory and all subdirectories (excluding
 `node_modules`). For each `package.json` found, it will:
 
-1. Upgrade `dependencies` and `devDependencies` to their latest versions.
+1. Upgrade `dependencies` and `devDependencies` to the latest versions that are at least 7 days old.
 2. Sort the package keys in a stable manner.
 3. Delete the existing `package-lock.json`.
 4. Run `npm install` to generate an updated lockfile.
 
 ### Special Rules
 
-- `@types/node` is only upgraded to the latest version within the same major version.
+- Packages published in the past 7 days are ignored when selecting upgrade versions.
+- If the current package version is newer than the latest eligible version, it is left unchanged instead of being
+  downgraded.
+- `@types/node` is only upgraded to the latest eligible version within the same major version.
 
 ## Development
 
