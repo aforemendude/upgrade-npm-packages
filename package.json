@@ -43,7 +43,7 @@
     "url": "git+https://github.com/aforemendude/upgrade-npm-packages.git"
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "rm -rf dist && tsc && chmod +x dist/index.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepack": "npm run verify",
