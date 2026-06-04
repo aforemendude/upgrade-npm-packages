@@ -7,10 +7,10 @@
   },
   "devDependencies": {
     "@types/cross-spawn": "6.0.6",
-    "@types/node": "24.10.13",
-    "prettier": "3.8.1",
-    "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "@types/node": "24.12.4",
+    "prettier": "3.8.3",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
   },
   "name": "upgrade-npm-packages",
   "private": true,
