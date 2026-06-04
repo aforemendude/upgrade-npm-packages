@@ -50,7 +50,7 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run format:check && npm run build && npm run test"
+    "verify": "npm install && npm run format:check && npm run build && npm run test"
   },
   "version": "1.0.1"
 }
