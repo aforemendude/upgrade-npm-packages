@@ -8,6 +8,11 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 type VersionTimeMap = Record<string, string>;
 
+type VersionMetadata = {
+  versions: string[];
+  versionTimes: VersionTimeMap;
+};
+
 type ParsedVersion = {
   major: number;
   minor: number;
@@ -131,25 +136,26 @@ const normalizeVersions = (versions: unknown): string[] => {
   return typeof versions === 'string' && versions ? [versions] : [];
 };
 
-const getVersions = async (packageName: string, major?: number): Promise<string[]> => {
-  if (major === undefined) {
-    const { stdout } = await runNpm(['view', packageName, 'versions', '--json']);
-    return normalizeVersions(JSON.parse(stdout.toString() || '""'));
-  }
-
-  const packageSpec = `${packageName}@${major}`;
-  const { stdout } = await runNpm(['view', packageSpec, 'version', '--json']);
-  return normalizeVersions(JSON.parse(stdout.toString() || '""'));
-};
-
-const getVersionTimes = async (packageName: string): Promise<VersionTimeMap> => {
-  const { stdout } = await runNpm(['view', packageName, 'time', '--json']);
-  const versionTimes = JSON.parse(stdout.toString() || '{}') as unknown;
+const normalizeVersionTimes = (versionTimes: unknown): VersionTimeMap => {
   if (!versionTimes || typeof versionTimes !== 'object' || Array.isArray(versionTimes)) {
     return {};
   }
 
   return versionTimes as VersionTimeMap;
+};
+
+const getVersionMetadata = async (packageName: string): Promise<VersionMetadata> => {
+  const { stdout } = await runNpm(['view', packageName, 'versions', 'time', '--json']);
+  const metadata = JSON.parse(stdout.toString() || '{}') as unknown;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return { versions: [], versionTimes: {} };
+  }
+
+  const { versions, time } = metadata as { versions?: unknown; time?: unknown };
+  return {
+    versions: normalizeVersions(versions),
+    versionTimes: normalizeVersionTimes(time),
+  };
 };
 
 const isOldEnough = (version: string, versionTimes: VersionTimeMap): boolean => {
@@ -217,9 +223,10 @@ const getLatestEligibleVersion = async (
   currentVersion?: string,
   major?: number,
 ): Promise<string> => {
-  const versions = await getVersions(packageName, major);
-  const versionTimes = await getVersionTimes(packageName);
-  return findLatestEligibleVersion(versions, versionTimes, currentVersion);
+  const { versions, versionTimes } = await getVersionMetadata(packageName);
+  const matchingVersions =
+    major === undefined ? versions : versions.filter((version) => parseVersion(version)?.major === major);
+  return findLatestEligibleVersion(matchingVersions, versionTimes, currentVersion);
 };
 
 export const getLatestVersion = async (packageName: string, currentVersion?: string): Promise<string> => {

@@ -15,7 +15,11 @@ function daysAgo(days: number) {
 }
 
 function createTimeResponse(times: Record<string, string>) {
-  return JSON.stringify({ created: daysAgo(300), modified: daysAgo(1), ...times }) + '\n';
+  return { created: daysAgo(300), modified: daysAgo(1), ...times };
+}
+
+function createMetadataResponse(versions: string[] | string, times: Record<string, string>) {
+  return JSON.stringify({ versions, time: createTimeResponse(times) }) + '\n';
 }
 
 function createMockChild(stdout: string, code = 0) {
@@ -35,12 +39,9 @@ function setupSpawnMock() {
   vi.mocked(spawn).mockImplementation((_cmd, args) => {
     const a = args as string[];
     // getLatestVersion
-    if (a[0] === 'view' && a[1] === 'typescript' && a[2] === 'versions' && a[3] === '--json') {
-      return createMockChild('["4.9.0", "5.0.0", "5.1.0", "6.0.0-beta.1"]\n') as any;
-    }
-    if (a[0] === 'view' && a[1] === 'typescript' && a[2] === 'time' && a[3] === '--json') {
+    if (a[0] === 'view' && a[1] === 'typescript' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
       return createMockChild(
-        createTimeResponse({
+        createMetadataResponse(['4.9.0', '5.0.0', '5.1.0', '6.0.0-beta.1'], {
           '4.9.0': daysAgo(40),
           '5.0.0': daysAgo(8),
           '5.1.0': daysAgo(1),
@@ -49,36 +50,29 @@ function setupSpawnMock() {
       ) as any;
     }
     // current version should not be downgraded
-    if (a[0] === 'view' && a[1] === 'fresh-current' && a[2] === 'versions' && a[3] === '--json') {
-      return createMockChild('["1.0.0", "2.0.0"]\n') as any;
-    }
-    if (a[0] === 'view' && a[1] === 'fresh-current' && a[2] === 'time' && a[3] === '--json') {
-      return createMockChild(createTimeResponse({ '1.0.0': daysAgo(40), '2.0.0': daysAgo(1) })) as any;
+    if (a[0] === 'view' && a[1] === 'fresh-current' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
+      return createMockChild(
+        createMetadataResponse(['1.0.0', '2.0.0'], { '1.0.0': daysAgo(40), '2.0.0': daysAgo(1) }),
+      ) as any;
     }
     // no old enough published version
-    if (a[0] === 'view' && a[1] === 'brand-new' && a[2] === 'versions' && a[3] === '--json') {
-      return createMockChild('["1.0.0"]\n') as any;
+    if (a[0] === 'view' && a[1] === 'brand-new' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
+      return createMockChild(createMetadataResponse(['1.0.0'], { '1.0.0': daysAgo(1) })) as any;
     }
-    if (a[0] === 'view' && a[1] === 'brand-new' && a[2] === 'time' && a[3] === '--json') {
-      return createMockChild(createTimeResponse({ '1.0.0': daysAgo(1) })) as any;
-    }
-    // getLatestVersionOfMajor success (array)
-    if (a[0] === 'view' && a[1] === '@types/node@18' && a[2] === 'version' && a[3] === '--json') {
-      return createMockChild('["18.0.0", "18.1.1", "18.2.0"]\n') as any;
-    }
-    // getLatestVersionOfMajor success (string)
-    if (a[0] === 'view' && a[1] === '@types/node@20' && a[2] === 'version' && a[3] === '--json') {
-      return createMockChild('"20.0.0"\n') as any;
-    }
-    if (a[0] === 'view' && a[1] === '@types/node' && a[2] === 'time' && a[3] === '--json') {
+    // getLatestVersionOfMajor success
+    if (a[0] === 'view' && a[1] === '@types/node' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
       return createMockChild(
-        createTimeResponse({
+        createMetadataResponse(['18.0.0', '18.1.1', '18.2.0', '20.0.0'], {
           '18.0.0': daysAgo(30),
           '18.1.1': daysAgo(8),
           '18.2.0': daysAgo(1),
           '20.0.0': daysAgo(30),
         }),
       ) as any;
+    }
+    // getLatestVersionOfMajor success (string versions response)
+    if (a[0] === 'view' && a[1] === 'single-major' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
+      return createMockChild(createMetadataResponse('20.0.0', { '20.0.0': daysAgo(30) })) as any;
     }
     // installPackages
     if (a[0] === 'install') {
@@ -123,8 +117,8 @@ describe('npm util', () => {
       expect(version).toBe('18.1.1');
     });
 
-    it('should fetch latest version of major (string response)', async () => {
-      const version = await getLatestVersionOfMajor('@types/node', 20);
+    it('should fetch latest version of major (string versions response)', async () => {
+      const version = await getLatestVersionOfMajor('single-major', 20);
       expect(version).toBe('20.0.0');
     });
 
@@ -145,14 +139,10 @@ describe('npm util', () => {
       await getLatestVersion('typescript');
       expect(spawn).toHaveBeenCalledWith(
         'npm',
-        ['view', 'typescript', 'versions', '--json'],
+        ['view', 'typescript', 'versions', 'time', '--json'],
         expect.objectContaining({ shell: false }),
       );
-      expect(spawn).toHaveBeenCalledWith(
-        'npm',
-        ['view', 'typescript', 'time', '--json'],
-        expect.objectContaining({ shell: false }),
-      );
+      expect(spawn).toHaveBeenCalledTimes(1);
     });
   });
 });
