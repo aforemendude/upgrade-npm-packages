@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 - 2026-06-06
+
+### Changed
+
+- Update installation documentation to use the published npm package.
+
 ## 1.0.2 - 2026-06-06
 
 ### Changed
