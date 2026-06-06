@@ -59,6 +59,27 @@ function setupSpawnMock() {
     if (a[0] === 'view' && a[1] === 'brand-new' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
       return createMockChild(createMetadataResponse(['1.0.0'], { '1.0.0': daysAgo(1) })) as any;
     }
+    // incomplete range with old enough satisfying versions
+    if (a[0] === 'view' && a[1] === 'range-eligible' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
+      return createMockChild(
+        createMetadataResponse(['1.9.0', '2.0.0', '2.1.0', '2.2.0'], {
+          '1.9.0': daysAgo(40),
+          '2.0.0': daysAgo(10),
+          '2.1.0': daysAgo(8),
+          '2.2.0': daysAgo(1),
+        }),
+      ) as any;
+    }
+    // incomplete range with no old enough satisfying versions
+    if (a[0] === 'view' && a[1] === 'range-current' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
+      return createMockChild(
+        createMetadataResponse(['1.9.0', '2.0.0', '2.1.0'], {
+          '1.9.0': daysAgo(40),
+          '2.0.0': daysAgo(1),
+          '2.1.0': daysAgo(1),
+        }),
+      ) as any;
+    }
     // getLatestVersionOfMajor success
     if (a[0] === 'view' && a[1] === '@types/node' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
       return createMockChild(
@@ -95,14 +116,24 @@ describe('npm util', () => {
       expect(version).toBe('5.0.0');
     });
 
-    it('should not return an older eligible version when the current version is newer', async () => {
+    it('should return the current version when it is newer than the latest eligible version', async () => {
       const version = await getLatestVersion('fresh-current', '2.0.0');
-      expect(version).toBe('');
+      expect(version).toBe('2.0.0');
     });
 
     it('should return empty when no version is at least seven days old', async () => {
       const version = await getLatestVersion('brand-new');
       expect(version).toBe('');
+    });
+
+    it('should return the latest old enough version that satisfies an incomplete range', async () => {
+      const version = await getLatestVersion('range-eligible', '>=2');
+      expect(version).toBe('2.1.0');
+    });
+
+    it('should return the earliest version satisfying an incomplete range when none are old enough', async () => {
+      const version = await getLatestVersion('range-current', '>=2');
+      expect(version).toBe('2.0.0');
     });
 
     it('should handle errors', async () => {

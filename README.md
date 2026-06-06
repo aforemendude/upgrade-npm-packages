@@ -42,18 +42,22 @@ For each `package.json` file it finds, the tool:
 
 ## Version Selection
 
-- The selected version must have been published at least 7 days ago.
+- The tool prefers the newest version that was published at least 7 days ago.
 - Normal dependencies ignore prerelease versions. If the current dependency reference contains a prerelease version,
   prerelease versions are also eligible.
-- If the current dependency reference contains a SemVer version newer than the latest eligible version, the dependency
-  is left unchanged instead of being downgraded.
+- If the current dependency reference contains a SemVer version newer than the latest eligible version, that current
+  SemVer version is pinned instead of being downgraded.
+- If the current dependency reference does not contain a complete SemVer version but is a valid SemVer range, the
+  selected version must satisfy that range. If no satisfying version is at least 7 days old, the earliest satisfying
+  version is pinned.
 - Dependency references set to `*` are skipped.
-- Other dependency references are parsed by looking for a SemVer version inside the string. References without a SemVer
-  version do not get downgrade protection.
-- Version ranges are not preserved. For example, `^1.2.3` can become `2.0.0`.
+- Other dependency references are parsed by looking for a SemVer version inside the string. References that do not
+  contain a SemVer version and are not valid SemVer ranges do not get downgrade or range protection.
+- Version ranges are not preserved; selected versions are written as exact pins. For example, `^1.2.3` can become
+  `2.0.0`.
 
-The following packages are only upgraded within their current major version when the current reference contains a SemVer
-major version:
+The following packages are only upgraded within their current major version when the current reference contains or can
+be interpreted as a SemVer major version:
 
 - `@eslint/js`
 - `@types/node`

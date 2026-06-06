@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { minVersion } from 'semver';
 import { SAME_MAJOR_UPGRADE_PACKAGES } from './config';
 import { stringify } from './utils/json';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './utils/npm';
@@ -14,13 +15,19 @@ const extractVersion = (versionRef: string): string | undefined => {
   return `${match[1]}.${match[2]}.${match[3]}`;
 };
 
-const getMajorVersion = (version: string | undefined): number | null => {
-  if (!version) {
+const getMajorVersion = (versionRef: string): number | null => {
+  const exactVersion = extractVersion(versionRef);
+  if (exactVersion) {
+    const major = exactVersion.split('.')[0];
+    return major ? parseInt(major, 10) : null;
+  }
+
+  const minimumVersion = minVersion(versionRef);
+  if (!minimumVersion) {
     return null;
   }
 
-  const major = version.split('.')[0];
-  return major ? parseInt(major, 10) : null;
+  return minimumVersion.major;
 };
 
 const upgradeSection = async (section: Record<string, string> | undefined) => {
@@ -42,14 +49,15 @@ const upgradeSection = async (section: Record<string, string> | undefined) => {
     }
 
     const currentVersion = extractVersion(currentRef);
-    const currentMajor = getMajorVersion(currentVersion);
+    const currentVersionReference = currentVersion ?? currentRef;
+    const currentMajor = getMajorVersion(currentRef);
 
     let latestVersion = '';
 
     if (SAME_MAJOR_UPGRADE_PACKAGES.has(pkg) && currentMajor !== null) {
-      latestVersion = await getLatestVersionOfMajor(pkg, currentMajor, currentVersion);
+      latestVersion = await getLatestVersionOfMajor(pkg, currentMajor, currentVersionReference);
     } else {
-      latestVersion = await getLatestVersion(pkg, currentVersion);
+      latestVersion = await getLatestVersion(pkg, currentVersionReference);
     }
 
     if (latestVersion) {

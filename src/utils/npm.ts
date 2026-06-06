@@ -1,5 +1,6 @@
 import spawn from 'cross-spawn';
 import { ExecFileOptions } from 'child_process';
+import { minVersion, satisfies, validRange } from 'semver';
 import logger from './logger';
 
 const MINIMUM_PACKAGE_AGE_DAYS = 7;
@@ -172,31 +173,69 @@ const isOldEnough = (version: string, versionTimes: VersionTimeMap): boolean => 
   return publishedTime <= Date.now() - MINIMUM_PACKAGE_AGE_DAYS * MS_PER_DAY;
 };
 
-const isCurrentVersionNewer = (currentVersion: string | undefined, latestEligibleVersion: string): boolean => {
-  if (!currentVersion) {
+const isCurrentVersionNewer = (currentReference: string | undefined, latestEligibleVersion: string): boolean => {
+  if (!currentReference) {
     return false;
   }
 
-  const comparison = compareVersions(currentVersion, latestEligibleVersion);
+  const comparison = compareVersions(currentReference, latestEligibleVersion);
   return comparison !== null && comparison > 0;
+};
+
+const isRangeReference = (currentReference: string | undefined): currentReference is string => {
+  if (!currentReference || parseVersion(currentReference)) {
+    return false;
+  }
+
+  return validRange(currentReference) !== null;
+};
+
+const rangeAllowsPrerelease = (rangeReference: string): boolean => {
+  const minimumVersion = minVersion(rangeReference);
+  return (minimumVersion?.prerelease.length ?? 0) > 0;
+};
+
+const satisfiesRangeReference = (version: string, rangeReference: string, allowPrerelease: boolean): boolean => {
+  return satisfies(version, rangeReference, { includePrerelease: allowPrerelease });
 };
 
 const findLatestEligibleVersion = (
   versions: string[],
   versionTimes: VersionTimeMap,
-  currentVersion?: string,
+  currentReference?: string,
 ): string => {
-  const currentParsedVersion = currentVersion ? parseVersion(currentVersion) : null;
-  const allowPrerelease = currentParsedVersion ? currentParsedVersion.prerelease.length > 0 : false;
+  const currentParsedVersion = currentReference ? parseVersion(currentReference) : null;
+  const rangeReference = isRangeReference(currentReference) ? currentReference : undefined;
+  const allowPrerelease = currentParsedVersion
+    ? currentParsedVersion.prerelease.length > 0
+    : rangeReference
+      ? rangeAllowsPrerelease(rangeReference)
+      : false;
   let latestEligibleVersion = '';
+  let earliestSatisfyingVersion = '';
 
   for (const version of versions) {
     const parsedVersion = parseVersion(version);
-    if (
-      !parsedVersion ||
-      (parsedVersion.prerelease.length > 0 && !allowPrerelease) ||
-      !isOldEnough(version, versionTimes)
-    ) {
+    if (!parsedVersion || (parsedVersion.prerelease.length > 0 && !allowPrerelease)) {
+      continue;
+    }
+
+    if (rangeReference) {
+      if (!satisfiesRangeReference(version, rangeReference, allowPrerelease)) {
+        continue;
+      }
+
+      if (!earliestSatisfyingVersion) {
+        earliestSatisfyingVersion = version;
+      } else {
+        const earliestComparison = compareVersions(version, earliestSatisfyingVersion);
+        if (earliestComparison !== null && earliestComparison < 0) {
+          earliestSatisfyingVersion = version;
+        }
+      }
+    }
+
+    if (!isOldEnough(version, versionTimes)) {
       continue;
     }
 
@@ -211,8 +250,12 @@ const findLatestEligibleVersion = (
     }
   }
 
-  if (latestEligibleVersion && isCurrentVersionNewer(currentVersion, latestEligibleVersion)) {
-    return '';
+  if (!latestEligibleVersion && rangeReference) {
+    return earliestSatisfyingVersion;
+  }
+
+  if (latestEligibleVersion && !rangeReference && isCurrentVersionNewer(currentReference, latestEligibleVersion)) {
+    return currentReference ?? '';
   }
 
   return latestEligibleVersion;
@@ -220,18 +263,18 @@ const findLatestEligibleVersion = (
 
 const getLatestEligibleVersion = async (
   packageName: string,
-  currentVersion?: string,
+  currentReference?: string,
   major?: number,
 ): Promise<string> => {
   const { versions, versionTimes } = await getVersionMetadata(packageName);
   const matchingVersions =
     major === undefined ? versions : versions.filter((version) => parseVersion(version)?.major === major);
-  return findLatestEligibleVersion(matchingVersions, versionTimes, currentVersion);
+  return findLatestEligibleVersion(matchingVersions, versionTimes, currentReference);
 };
 
-export const getLatestVersion = async (packageName: string, currentVersion?: string): Promise<string> => {
+export const getLatestVersion = async (packageName: string, currentReference?: string): Promise<string> => {
   try {
-    return await getLatestEligibleVersion(packageName, currentVersion);
+    return await getLatestEligibleVersion(packageName, currentReference);
   } catch (error) {
     logger.error(`Could not fetch the latest version for ${packageName}. Skipping...`);
     return '';
@@ -241,10 +284,10 @@ export const getLatestVersion = async (packageName: string, currentVersion?: str
 export const getLatestVersionOfMajor = async (
   packageName: string,
   major: number,
-  currentVersion?: string,
+  currentReference?: string,
 ): Promise<string> => {
   try {
-    return await getLatestEligibleVersion(packageName, currentVersion, major);
+    return await getLatestEligibleVersion(packageName, currentReference, major);
   } catch (error) {
     logger.error(`Could not fetch versions for ${packageName}@${major}. Skipping...`);
     return '';

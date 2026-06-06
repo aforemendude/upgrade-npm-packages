@@ -112,6 +112,24 @@ describe('upgradePackageJson', () => {
     expect(getLatestVersion).not.toHaveBeenCalled();
   });
 
+  it('should pass an incomplete range to same-major upgrade packages', async () => {
+    const filePath = '/test/package.json';
+    const packageJson = {
+      devDependencies: {
+        '@types/node': '^18',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '^18');
+    expect(getLatestVersion).not.toHaveBeenCalled();
+  });
+
   it('should keep the current package reference when no eligible upgrade is returned', async () => {
     vi.mocked(getLatestVersion).mockResolvedValueOnce('');
     const filePath = '/test/package.json';
@@ -129,5 +147,47 @@ describe('upgradePackageJson', () => {
 
     const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
     expect(writtenPackageJson.dependencies['some-pkg']).toBe('^2.0.0');
+  });
+
+  it('should pass an incomplete range to version lookup and pin the selected version', async () => {
+    vi.mocked(getLatestVersion).mockResolvedValueOnce('2.0.0');
+    const filePath = '/test/package.json';
+    const packageJson = {
+      dependencies: {
+        'some-pkg': '>=2',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersion).toHaveBeenCalledWith('some-pkg', '>=2');
+
+    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
+    expect(writtenPackageJson.dependencies['some-pkg']).toBe('2.0.0');
+  });
+
+  it('should pin the current version when the current version is newer than the latest eligible version', async () => {
+    vi.mocked(getLatestVersion).mockResolvedValueOnce('2.0.0');
+    const filePath = '/test/package.json';
+    const packageJson = {
+      dependencies: {
+        'some-pkg': '^2.0.0',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersion).toHaveBeenCalledWith('some-pkg', '2.0.0');
+
+    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
+    expect(writtenPackageJson.dependencies['some-pkg']).toBe('2.0.0');
   });
 });
