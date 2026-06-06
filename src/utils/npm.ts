@@ -1,6 +1,6 @@
 import spawn from 'cross-spawn';
 import { ExecFileOptions } from 'child_process';
-import { minVersion, satisfies, validRange } from 'semver';
+import { gt, lt, minVersion, parse, satisfies, validRange } from 'semver';
 import logger from './logger';
 
 const MINIMUM_PACKAGE_AGE_DAYS = 7;
@@ -12,13 +12,6 @@ type VersionTimeMap = Record<string, string>;
 type VersionMetadata = {
   versions: string[];
   versionTimes: VersionTimeMap;
-};
-
-type ParsedVersion = {
-  major: number;
-  minor: number;
-  patch: number;
-  prerelease: string[];
 };
 
 const runNpm = (args: string[], options: ExecFileOptions = {}): Promise<{ stdout: string; stderr: string }> => {
@@ -41,92 +34,6 @@ const runNpm = (args: string[], options: ExecFileOptions = {}): Promise<{ stdout
       }
     });
   });
-};
-
-const parseVersion = (version: string): ParsedVersion | null => {
-  const match = version.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.+)?$/);
-  const major = match?.[1];
-  const minor = match?.[2];
-  const patch = match?.[3];
-  if (!major || !minor || !patch) {
-    return null;
-  }
-
-  return {
-    major: parseInt(major, 10),
-    minor: parseInt(minor, 10),
-    patch: parseInt(patch, 10),
-    prerelease: match[4] ? match[4].split('.') : [],
-  };
-};
-
-const comparePrereleaseIdentifier = (left: string, right: string): number => {
-  const leftIsNumber = /^\d+$/.test(left);
-  const rightIsNumber = /^\d+$/.test(right);
-
-  if (leftIsNumber && rightIsNumber) {
-    return parseInt(left, 10) - parseInt(right, 10);
-  }
-
-  if (leftIsNumber !== rightIsNumber) {
-    return leftIsNumber ? -1 : 1;
-  }
-
-  return left.localeCompare(right);
-};
-
-const compareVersions = (leftVersion: string, rightVersion: string): number | null => {
-  const left = parseVersion(leftVersion);
-  const right = parseVersion(rightVersion);
-
-  if (!left || !right) {
-    return null;
-  }
-
-  if (left.major !== right.major) {
-    return left.major - right.major;
-  }
-
-  if (left.minor !== right.minor) {
-    return left.minor - right.minor;
-  }
-
-  if (left.patch !== right.patch) {
-    return left.patch - right.patch;
-  }
-
-  if (left.prerelease.length === 0 && right.prerelease.length === 0) {
-    return 0;
-  }
-
-  if (left.prerelease.length === 0) {
-    return 1;
-  }
-
-  if (right.prerelease.length === 0) {
-    return -1;
-  }
-
-  const identifierCount = Math.max(left.prerelease.length, right.prerelease.length);
-  for (let index = 0; index < identifierCount; index += 1) {
-    const leftIdentifier = left.prerelease[index];
-    const rightIdentifier = right.prerelease[index];
-
-    if (leftIdentifier === undefined) {
-      return -1;
-    }
-
-    if (rightIdentifier === undefined) {
-      return 1;
-    }
-
-    const comparison = comparePrereleaseIdentifier(leftIdentifier, rightIdentifier);
-    if (comparison !== 0) {
-      return comparison;
-    }
-  }
-
-  return 0;
 };
 
 const normalizeVersions = (versions: unknown): string[] => {
@@ -174,16 +81,15 @@ const isOldEnough = (version: string, versionTimes: VersionTimeMap): boolean => 
 };
 
 const isCurrentVersionNewer = (currentReference: string | undefined, latestEligibleVersion: string): boolean => {
-  if (!currentReference) {
+  if (!currentReference || !parse(currentReference)) {
     return false;
   }
 
-  const comparison = compareVersions(currentReference, latestEligibleVersion);
-  return comparison !== null && comparison > 0;
+  return gt(currentReference, latestEligibleVersion);
 };
 
 const isRangeReference = (currentReference: string | undefined): currentReference is string => {
-  if (!currentReference || parseVersion(currentReference)) {
+  if (!currentReference || parse(currentReference)) {
     return false;
   }
 
@@ -204,7 +110,7 @@ const findLatestEligibleVersion = (
   versionTimes: VersionTimeMap,
   currentReference?: string,
 ): string => {
-  const currentParsedVersion = currentReference ? parseVersion(currentReference) : null;
+  const currentParsedVersion = currentReference ? parse(currentReference) : null;
   const rangeReference = isRangeReference(currentReference) ? currentReference : undefined;
   const allowPrerelease = currentParsedVersion
     ? currentParsedVersion.prerelease.length > 0
@@ -215,7 +121,7 @@ const findLatestEligibleVersion = (
   let earliestSatisfyingVersion = '';
 
   for (const version of versions) {
-    const parsedVersion = parseVersion(version);
+    const parsedVersion = parse(version);
     if (!parsedVersion || (parsedVersion.prerelease.length > 0 && !allowPrerelease)) {
       continue;
     }
@@ -228,8 +134,7 @@ const findLatestEligibleVersion = (
       if (!earliestSatisfyingVersion) {
         earliestSatisfyingVersion = version;
       } else {
-        const earliestComparison = compareVersions(version, earliestSatisfyingVersion);
-        if (earliestComparison !== null && earliestComparison < 0) {
+        if (lt(version, earliestSatisfyingVersion)) {
           earliestSatisfyingVersion = version;
         }
       }
@@ -244,8 +149,7 @@ const findLatestEligibleVersion = (
       continue;
     }
 
-    const comparison = compareVersions(version, latestEligibleVersion);
-    if (comparison !== null && comparison > 0) {
+    if (gt(version, latestEligibleVersion)) {
       latestEligibleVersion = version;
     }
   }
@@ -268,7 +172,7 @@ const getLatestEligibleVersion = async (
 ): Promise<string> => {
   const { versions, versionTimes } = await getVersionMetadata(packageName);
   const matchingVersions =
-    major === undefined ? versions : versions.filter((version) => parseVersion(version)?.major === major);
+    major === undefined ? versions : versions.filter((version) => parse(version)?.major === major);
   return findLatestEligibleVersion(matchingVersions, versionTimes, currentReference);
 };
 

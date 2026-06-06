@@ -130,6 +130,24 @@ describe('upgradePackageJson', () => {
     expect(getLatestVersion).not.toHaveBeenCalled();
   });
 
+  it('should pass unsupported references to unrestricted version lookup', async () => {
+    const filePath = '/test/package.json';
+    const packageJson = {
+      devDependencies: {
+        '@types/node': 'workspace:*',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+    (fs.unlink as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersion).toHaveBeenCalledWith('@types/node', 'workspace:*');
+    expect(getLatestVersionOfMajor).not.toHaveBeenCalled();
+  });
+
   it('should keep the current package reference when no eligible upgrade is returned', async () => {
     vi.mocked(getLatestVersion).mockResolvedValueOnce('');
     const filePath = '/test/package.json';

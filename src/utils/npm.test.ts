@@ -73,11 +73,23 @@ function setupSpawnMock() {
     // incomplete range with no old enough satisfying versions
     if (a[0] === 'view' && a[1] === 'range-current' && a[2] === 'versions' && a[3] === 'time' && a[4] === '--json') {
       return createMockChild(
-        createMetadataResponse(['1.9.0', '2.0.0', '2.1.0'], {
+        createMetadataResponse(['1.9.0', '2.1.0', '2.2.0'], {
           '1.9.0': daysAgo(40),
-          '2.0.0': daysAgo(1),
           '2.1.0': daysAgo(1),
+          '2.2.0': daysAgo(1),
         }),
+      ) as any;
+    }
+    // invalid current reference
+    if (
+      a[0] === 'view' &&
+      a[1] === 'workspace-current' &&
+      a[2] === 'versions' &&
+      a[3] === 'time' &&
+      a[4] === '--json'
+    ) {
+      return createMockChild(
+        createMetadataResponse(['1.0.0', '2.0.0'], { '1.0.0': daysAgo(40), '2.0.0': daysAgo(8) }),
       ) as any;
     }
     // getLatestVersionOfMajor success
@@ -133,6 +145,11 @@ describe('npm util', () => {
 
     it('should return the earliest version satisfying an incomplete range when none are old enough', async () => {
       const version = await getLatestVersion('range-current', '>=2');
+      expect(version).toBe('2.1.0');
+    });
+
+    it('should ignore invalid current references while selecting the latest old enough version', async () => {
+      const version = await getLatestVersion('workspace-current', 'workspace:*');
       expect(version).toBe('2.0.0');
     });
 

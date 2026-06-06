@@ -1,28 +1,35 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { minVersion } from 'semver';
+import { coerce, minVersion, parse, validRange } from 'semver';
 import { SAME_MAJOR_UPGRADE_PACKAGES } from './config';
 import { stringify } from './utils/json';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './utils/npm';
 import { logger } from './utils/logger';
 
 const extractVersion = (versionRef: string): string | undefined => {
-  const match = versionRef.match(/(\d+)\.(\d+)\.(\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)/);
-  if (!match?.[1] || !match[2] || !match[3]) {
+  const version = coerce(versionRef, { includePrerelease: true });
+  if (!version || !versionRef.includes(version.raw)) {
     return undefined;
   }
 
-  return `${match[1]}.${match[2]}.${match[3]}`;
+  return version.raw;
+};
+
+const getMinimumVersion = (versionRef: string) => {
+  if (!validRange(versionRef)) {
+    return null;
+  }
+
+  return minVersion(versionRef);
 };
 
 const getMajorVersion = (versionRef: string): number | null => {
   const exactVersion = extractVersion(versionRef);
   if (exactVersion) {
-    const major = exactVersion.split('.')[0];
-    return major ? parseInt(major, 10) : null;
+    return parse(exactVersion)?.major ?? null;
   }
 
-  const minimumVersion = minVersion(versionRef);
+  const minimumVersion = getMinimumVersion(versionRef);
   if (!minimumVersion) {
     return null;
   }
