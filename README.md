@@ -13,12 +13,10 @@ walks all subdirectories from the directory where the command is run.
 
 ## Installation
 
-Clone the repository, install dependencies, build the project, and link the CLI:
+Install the published CLI globally from npm:
 
 ```bash
-npm install
-npm run build
-npm link
+npm install --global @aforemendude/upgrade-npm-packages
 ```
 
 ## Usage
