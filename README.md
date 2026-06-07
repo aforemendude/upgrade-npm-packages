@@ -40,8 +40,10 @@ For each `package.json` file it finds, the tool:
 
 1. Reads `dependencies` and `devDependencies`.
 2. Looks up package versions with `npm view <package> versions time --json`.
-3. Replaces each eligible dependency reference with an exact version string.
-4. Writes the `package.json` with two-space formatting and alphabetically sorted object keys.
+3. Checks eligible candidate versions with `npm view <package>@<version> deprecated --json` until it finds a
+   non-deprecated version.
+4. Replaces each eligible dependency reference with an exact version string.
+5. Writes the `package.json` with two-space formatting and alphabetically sorted object keys.
 
 When `--force-reinstall` is present, the tool then deletes every discovered `package-lock.json` file and `node_modules`
 directory below the current working directory, and runs `npm install` once in the current working directory. It does
@@ -49,13 +51,15 @@ this once regardless of how many `package.json` files were found.
 
 ## Version Selection
 
-- Deprecated versions are excluded from selection.
+- Deprecated candidate versions are excluded from selection. Candidates are checked newest first after age, range,
+  prerelease, and same-major filters have been applied.
 - Packages in the `@aforemendude` namespace have no minimum required package age. Other packages prefer the newest
   version that was published at least 7 days ago.
 - Normal dependencies ignore prerelease versions. If the current dependency reference contains a prerelease version,
   prerelease versions are also eligible.
-- If the current dependency reference contains a non-deprecated SemVer version newer than the latest eligible version,
-  that current SemVer version is pinned instead of being downgraded.
+- If the current dependency reference contains a SemVer version newer than the latest eligible candidate, that current
+  SemVer version is pinned instead of being downgraded. Versions below the current SemVer version are not checked for
+  deprecation.
 - If the current dependency reference does not contain a complete SemVer version but is a valid SemVer range, the
   selected version must satisfy that range. If no satisfying non-deprecated version is at least 7 days old, the earliest
   satisfying non-deprecated version is pinned.

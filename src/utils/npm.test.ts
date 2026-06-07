@@ -28,21 +28,9 @@ function createMetadataResponse(versions: string[] | string, times: Record<strin
   return JSON.stringify({ versions, time: createTimeResponse(times) }) + '\n';
 }
 
-function normalizeVersionList(versions: string[] | string) {
-  return Array.isArray(versions) ? versions : [versions];
-}
-
-function createDeprecationResponse(versions: string[] | string, deprecatedVersions: Record<string, string> = {}) {
-  const versionList = normalizeVersionList(versions);
-  const hasDeprecatedVersions = Object.keys(deprecatedVersions).length > 0;
-  const deprecationMetadata = hasDeprecatedVersions
-    ? versionList.map((version) => {
-        const deprecated = deprecatedVersions[version];
-        return deprecated ? { version, deprecated } : { version };
-      })
-    : versionList;
-
-  return JSON.stringify(deprecationMetadata) + '\n';
+function createDeprecationResponse(version: string, deprecatedVersions: Record<string, string> = {}) {
+  const deprecationMessage = deprecatedVersions[version];
+  return deprecationMessage ? JSON.stringify(deprecationMessage) + '\n' : '';
 }
 
 function createMockChild(stdout: string, code = 0) {
@@ -156,6 +144,22 @@ function setupSpawnMock() {
     },
   };
 
+  const parsePackageVersionSpec = (spec: string | undefined) => {
+    if (!spec) {
+      return undefined;
+    }
+
+    const versionSeparatorIndex = spec.lastIndexOf('@');
+    if (versionSeparatorIndex <= 0) {
+      return undefined;
+    }
+
+    return {
+      packageName: spec.slice(0, versionSeparatorIndex),
+      version: spec.slice(versionSeparatorIndex + 1),
+    };
+  };
+
   vi.mocked(spawn).mockImplementation((_cmd, args) => {
     const a = args as string[];
 
@@ -167,12 +171,12 @@ function setupSpawnMock() {
       }
     }
 
-    if (a[0] === 'view' && a[2] === 'version' && a[3] === 'deprecated' && a[4] === '--json') {
-      const packageName = a[1]?.replace(/@>=0\.0\.0-0$/, '');
-      const registryPackage = packageName ? registryPackages[packageName] : undefined;
-      if (registryPackage) {
+    if (a[0] === 'view' && a[2] === 'deprecated' && a[3] === '--json') {
+      const packageVersionSpec = parsePackageVersionSpec(a[1]);
+      const registryPackage = packageVersionSpec ? registryPackages[packageVersionSpec.packageName] : undefined;
+      if (packageVersionSpec && registryPackage) {
         return createMockChild(
-          createDeprecationResponse(registryPackage.versions, registryPackage.deprecatedVersions),
+          createDeprecationResponse(packageVersionSpec.version, registryPackage.deprecatedVersions),
         ) as any;
       }
     }
@@ -201,6 +205,7 @@ describe('npm util', () => {
     it('should return the current version when it is newer than the latest eligible version', async () => {
       const version = await getLatestVersion('fresh-current', '2.0.0');
       expect(version).toBe('2.0.0');
+      expect(spawn).toHaveBeenCalledTimes(1);
     });
 
     it('should return empty when no version is at least seven days old', async () => {
@@ -233,9 +238,16 @@ describe('npm util', () => {
       expect(version).toBe('2.0.0');
     });
 
-    it('should not keep a deprecated current version to avoid a downgrade', async () => {
+    it('should not check deprecated versions below the current version to avoid a downgrade', async () => {
       const version = await getLatestVersion('deprecated-current', '2.0.0');
-      expect(version).toBe('1.0.0');
+      expect(version).toBe('');
+      expect(spawn).toHaveBeenNthCalledWith(
+        2,
+        'npm',
+        ['view', 'deprecated-current@2.0.0', 'deprecated', '--json'],
+        expect.objectContaining({ shell: false }),
+      );
+      expect(spawn).toHaveBeenCalledTimes(2);
     });
 
     it('should skip the minimum age check for @aforemendude packages', async () => {
@@ -294,7 +306,7 @@ describe('npm util', () => {
       expect(spawn).toHaveBeenNthCalledWith(
         2,
         'npm',
-        ['view', 'typescript@>=0.0.0-0', 'version', 'deprecated', '--json'],
+        ['view', 'typescript@5.0.0', 'deprecated', '--json'],
         expect.objectContaining({ shell: false }),
       );
       expect(spawn).toHaveBeenCalledTimes(2);
