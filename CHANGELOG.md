@@ -1,10 +1,13 @@
 # Changelog
 
-## 1.0.4 - 2026-06-07
+## 2.0.0 - 2026-06-07
 
 ### Changed
 
 - Reject unexpected CLI arguments and print usage help before exiting.
+- Stop deleting lockfiles and running `npm install` during default package upgrades.
+- Add `--force-reinstall` to delete all discovered `package-lock.json` files and `node_modules` directories, then run
+  one `npm install` from the current working directory.
 
 ## 1.0.3 - 2026-06-06
 
