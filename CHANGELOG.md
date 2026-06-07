@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0 - 2026-06-07
+
+### Changed
+
+- Exclude deprecated package versions from upgrade selection.
+- Skip the minimum package age requirement for packages in the `@aforemendude` namespace while keeping the 7-day minimum
+  for other packages.
+- Move package age and deprecation metadata policy constants into shared configuration.
+
 ## 2.0.0 - 2026-06-07
 
 ### Changed
