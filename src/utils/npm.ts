@@ -1,11 +1,8 @@
 import spawn from 'cross-spawn';
 import { ExecFileOptions } from 'child_process';
 import { gt, lt, minVersion, parse, satisfies, validRange } from 'semver';
+import { DEPRECATION_METADATA_RANGE, MINIMUM_PACKAGE_AGE_DAYS, MINIMUM_PACKAGE_AGE_EXEMPT_SCOPE } from '../config';
 import logger from './logger';
-
-const MINIMUM_PACKAGE_AGE_DAYS = 7;
-const MINIMUM_PACKAGE_AGE_EXEMPT_SCOPE = '@aforemendude/';
-const DEPRECATION_METADATA_RANGE = '>=0.0.0-0';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
