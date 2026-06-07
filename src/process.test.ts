@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Dirent } from 'fs';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { upgradePackageJson } from './process';
+import { forceReinstall, upgradePackageJson } from './process';
 import { installPackages, getLatestVersion, getLatestVersionOfMajor } from './utils/npm';
 import { logger } from './utils/logger';
 
@@ -9,9 +10,10 @@ vi.mock('fs/promises', async () => {
   const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
   return {
     ...actual,
+    readdir: vi.fn(),
     readFile: vi.fn(),
+    rm: vi.fn(),
     writeFile: vi.fn(),
-    unlink: vi.fn(),
   };
 });
 
@@ -34,12 +36,18 @@ vi.mock('./utils/logger', () => ({
   },
 }));
 
+const createDirent = (name: string, isDirectory: boolean): Dirent =>
+  ({
+    name,
+    isDirectory: () => isDirectory,
+  }) as Dirent;
+
 describe('upgradePackageJson', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should upgrade packages, delete lockfile, and run npm install', async () => {
+  it('should upgrade packages without deleting lockfiles or running npm install', async () => {
     const filePath = '/test/package.json';
     const packageJson = {
       dependencies: {
@@ -49,25 +57,24 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
     expect(getLatestVersion).toHaveBeenCalledWith('some-pkg', '1.0.0');
     expect(fs.writeFile).toHaveBeenCalledWith(filePath, expect.any(String), 'utf-8');
-    expect(fs.unlink).toHaveBeenCalledWith(path.join('/test', 'package-lock.json'));
-    expect(installPackages).toHaveBeenCalledWith('/test');
+    expect(fs.rm).not.toHaveBeenCalled();
+    expect(installPackages).not.toHaveBeenCalled();
   });
 
-  it('should not throw if package-lock.json does not exist', async () => {
+  it('should write package.json files that do not have dependency sections', async () => {
     const filePath = '/test/package.json';
     const packageJson = {};
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
-    (fs.unlink as any).mockRejectedValue({ code: 'ENOENT' });
 
     await expect(upgradePackageJson(filePath)).resolves.not.toThrow();
-    expect(installPackages).toHaveBeenCalled();
+    expect(fs.writeFile).toHaveBeenCalledWith(filePath, '{}', 'utf-8');
+    expect(installPackages).not.toHaveBeenCalled();
   });
 
   it('should skip packages with * version and log it', async () => {
@@ -81,7 +88,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -104,7 +110,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -122,7 +127,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -140,7 +144,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -159,7 +162,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -178,7 +180,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -199,7 +200,6 @@ describe('upgradePackageJson', () => {
 
     (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
     (fs.writeFile as any).mockResolvedValue(undefined);
-    (fs.unlink as any).mockResolvedValue(undefined);
 
     await upgradePackageJson(filePath);
 
@@ -207,5 +207,44 @@ describe('upgradePackageJson', () => {
 
     const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
     expect(writtenPackageJson.dependencies['some-pkg']).toBe('2.0.0');
+  });
+});
+
+describe('forceReinstall', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should delete all package locks and node_modules folders, then run one install at cwd', async () => {
+    const entries = new Map<string, Dirent[]>([
+      [
+        '/repo',
+        [
+          createDirent('package-lock.json', false),
+          createDirent('node_modules', true),
+          createDirent('packages', true),
+          createDirent('package.json', false),
+        ],
+      ],
+      ['/repo/packages', [createDirent('app', true), createDirent('package-lock.json', false)]],
+      ['/repo/packages/app', [createDirent('node_modules', true), createDirent('package-lock.json', false)]],
+    ]);
+
+    (fs.readdir as any).mockImplementation(async (dir: string) => entries.get(String(dir)) ?? []);
+    vi.mocked(fs.rm).mockResolvedValue(undefined);
+
+    await forceReinstall('/repo');
+
+    expect(fs.rm).toHaveBeenCalledWith(path.join('/repo', 'package-lock.json'), { force: true });
+    expect(fs.rm).toHaveBeenCalledWith(path.join('/repo', 'packages', 'package-lock.json'), { force: true });
+    expect(fs.rm).toHaveBeenCalledWith(path.join('/repo', 'packages', 'app', 'package-lock.json'), { force: true });
+    expect(fs.rm).toHaveBeenCalledWith(path.join('/repo', 'node_modules'), { recursive: true, force: true });
+    expect(fs.rm).toHaveBeenCalledWith(path.join('/repo', 'packages', 'app', 'node_modules'), {
+      recursive: true,
+      force: true,
+    });
+    expect(fs.readdir).not.toHaveBeenCalledWith(path.join('/repo', 'node_modules'), expect.anything());
+    expect(installPackages).toHaveBeenCalledTimes(1);
+    expect(installPackages).toHaveBeenCalledWith('/repo');
   });
 });

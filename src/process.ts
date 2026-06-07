@@ -6,6 +6,14 @@ import { stringify } from './utils/json';
 import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './utils/npm';
 import { logger } from './utils/logger';
 
+type ReinstallTargets = {
+  lockfilePaths: string[];
+  nodeModulesPaths: string[];
+};
+
+const PACKAGE_LOCK_FILE = 'package-lock.json';
+const NODE_MODULES_DIRECTORY = 'node_modules';
+
 const extractVersion = (versionRef: string): string | undefined => {
   const version = coerce(versionRef, { includePrerelease: true });
   if (!version || !versionRef.includes(version.raw)) {
@@ -84,25 +92,56 @@ export const upgradePackageJson = async (filePath: string): Promise<void> => {
     const formattedJson = stringify(packageJson);
     await fs.writeFile(filePath, formattedJson, 'utf-8');
     logger.success(`Successfully upgraded packages in ${filePath}`);
-
-    const dir = path.dirname(filePath);
-    const lockfilePath = path.join(dir, 'package-lock.json');
-
-    try {
-      await fs.unlink(lockfilePath);
-      logger.info(`Deleted ${lockfilePath}`);
-    } catch (e: any) {
-      if (e.code !== 'ENOENT') {
-        logger.warn(`Failed to delete ${lockfilePath}: ${e.message}`);
-      }
-    }
-
-    logger.info(`Running npm install in ${dir}...`);
-    await installPackages(dir);
-
-    logger.success(`Successfully refreshed lockfile in ${dir}`);
   } catch (error) {
     logger.error(`Unable to process ${filePath}:`, error instanceof Error ? error.message : String(error));
     throw error;
   }
+};
+
+const collectReinstallTargets = async (dir: string, targets: ReinstallTargets): Promise<void> => {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (entry.name === NODE_MODULES_DIRECTORY) {
+        targets.nodeModulesPaths.push(fullPath);
+        continue;
+      }
+
+      await collectReinstallTargets(fullPath, targets);
+      continue;
+    }
+
+    if (entry.name === PACKAGE_LOCK_FILE) {
+      targets.lockfilePaths.push(fullPath);
+    }
+  }
+};
+
+export const forceReinstall = async (cwd: string): Promise<void> => {
+  const targets: ReinstallTargets = {
+    lockfilePaths: [],
+    nodeModulesPaths: [],
+  };
+
+  await collectReinstallTargets(cwd, targets);
+  targets.lockfilePaths.sort();
+  targets.nodeModulesPaths.sort();
+
+  for (const lockfilePath of targets.lockfilePaths) {
+    await fs.rm(lockfilePath, { force: true });
+    logger.info(`Deleted ${lockfilePath}`);
+  }
+
+  for (const nodeModulesPath of targets.nodeModulesPaths) {
+    await fs.rm(nodeModulesPath, { recursive: true, force: true });
+    logger.info(`Deleted ${nodeModulesPath}`);
+  }
+
+  logger.info(`Running npm install in ${cwd}...`);
+  await installPackages(cwd);
+
+  logger.success(`Successfully reinstalled dependencies in ${cwd}`);
 };

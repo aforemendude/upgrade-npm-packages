@@ -1,7 +1,7 @@
 # Upgrade NPM Packages
 
 A CLI that recursively finds `package.json` files below the current working directory, updates their `dependencies` and
-`devDependencies`, and refreshes each package's `package-lock.json`.
+`devDependencies`, and optionally performs a clean reinstall from the current working directory.
 
 The command treats every discovered `package.json` independently. It skips `node_modules` directories, but otherwise
 walks all subdirectories from the directory where the command is run.
@@ -27,7 +27,14 @@ Run the command from the directory you want to scan:
 upgrade-npm-packages
 ```
 
-The CLI does not currently accept arguments or options.
+By default, the CLI only updates discovered `package.json` files. It does not delete lockfiles, delete `node_modules`,
+or run `npm install`.
+
+To force a clean reinstall after all `package.json` files are updated:
+
+```bash
+upgrade-npm-packages --force-reinstall
+```
 
 For each `package.json` file it finds, the tool:
 
@@ -35,8 +42,10 @@ For each `package.json` file it finds, the tool:
 2. Looks up package versions with `npm view <package> versions time --json`.
 3. Replaces each eligible dependency reference with an exact version string.
 4. Writes the `package.json` with two-space formatting and alphabetically sorted object keys.
-5. Deletes `package-lock.json` in the same directory, if it exists.
-6. Runs `npm install` in that package directory to create a fresh lockfile.
+
+When `--force-reinstall` is present, the tool then deletes every discovered `package-lock.json` file and `node_modules`
+directory below the current working directory, and runs `npm install` once in the current working directory. It does
+this once regardless of how many `package.json` files were found.
 
 ## Version Selection
 
@@ -65,7 +74,8 @@ be interpreted as a SemVer major version:
 
 - If no `package.json` files are found, the command logs an error and exits without changing files.
 - If version lookup fails for a dependency, that dependency is skipped.
-- If processing a `package.json` fails, or `npm install` fails, the command stops and exits with an error.
+- If processing a `package.json` fails, the command stops and exits with an error.
+- When `--force-reinstall` is present, cleanup or `npm install` failure stops the command and exits with an error.
 
 ## Development
 
