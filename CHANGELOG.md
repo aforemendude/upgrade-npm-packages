@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 - 2026-06-07
+
+### Changed
+
+- Reject unexpected CLI arguments and print usage help before exiting.
+
 ## 1.0.3 - 2026-06-06
 
 ### Changed
