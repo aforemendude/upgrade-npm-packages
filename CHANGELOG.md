@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.1 - 2026-06-07
+
+### Changed
+
+- Check deprecated status one eligible candidate version at a time instead of fetching broad deprecation metadata.
+- Skip deprecated-version checks for candidate versions below the current `package.json` SemVer version.
+
 ## 2.1.0 - 2026-06-07
 
 ### Changed
