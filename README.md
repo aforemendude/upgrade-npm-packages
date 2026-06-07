@@ -49,14 +49,16 @@ this once regardless of how many `package.json` files were found.
 
 ## Version Selection
 
-- The tool prefers the newest version that was published at least 7 days ago.
+- Deprecated versions are excluded from selection.
+- Packages in the `@aforemendude` namespace have no minimum required package age. Other packages prefer the newest
+  version that was published at least 7 days ago.
 - Normal dependencies ignore prerelease versions. If the current dependency reference contains a prerelease version,
   prerelease versions are also eligible.
-- If the current dependency reference contains a SemVer version newer than the latest eligible version, that current
-  SemVer version is pinned instead of being downgraded.
+- If the current dependency reference contains a non-deprecated SemVer version newer than the latest eligible version,
+  that current SemVer version is pinned instead of being downgraded.
 - If the current dependency reference does not contain a complete SemVer version but is a valid SemVer range, the
-  selected version must satisfy that range. If no satisfying version is at least 7 days old, the earliest satisfying
-  version is pinned.
+  selected version must satisfy that range. If no satisfying non-deprecated version is at least 7 days old, the earliest
+  satisfying non-deprecated version is pinned.
 - Dependency references set to `*` are skipped.
 - Other dependency references are parsed by looking for a SemVer version inside the string. References that do not
   contain a SemVer version and are not valid SemVer ranges do not get downgrade or range protection.
