@@ -66,6 +66,46 @@ describe('upgradePackageJson', () => {
     expect(installPackages).not.toHaveBeenCalled();
   });
 
+  it('should upgrade an aliased package using its registry name and preserve the alias', async () => {
+    const filePath = '/test/package.json';
+    const packageJson = {
+      dependencies: {
+        'custom-name': 'npm:other-package@1.0.0',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersion).toHaveBeenCalledWith('other-package', '1.0.0');
+
+    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
+    expect(writtenPackageJson.dependencies['custom-name']).toBe('npm:other-package@2.0.0');
+  });
+
+  it('should apply same-major upgrades to scoped packages behind an alias', async () => {
+    vi.mocked(getLatestVersionOfMajor).mockResolvedValueOnce('18.1.1');
+    const filePath = '/test/package.json';
+    const packageJson = {
+      devDependencies: {
+        'node-types': 'npm:@types/node@^18.1.0',
+      },
+    };
+
+    (fs.readFile as any).mockResolvedValue(JSON.stringify(packageJson));
+    (fs.writeFile as any).mockResolvedValue(undefined);
+
+    await upgradePackageJson(filePath);
+
+    expect(getLatestVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '18.1.0');
+    expect(getLatestVersion).not.toHaveBeenCalled();
+
+    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
+    expect(writtenPackageJson.devDependencies['node-types']).toBe('npm:@types/node@18.1.1');
+  });
+
   it('should write package.json files that do not have dependency sections', async () => {
     const filePath = '/test/package.json';
     const packageJson = {};

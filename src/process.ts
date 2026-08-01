@@ -11,8 +11,34 @@ type ReinstallTargets = {
   nodeModulesPaths: string[];
 };
 
+type DependencyTarget = {
+  packageName: string;
+  versionRef: string | undefined;
+  formatVersion: (version: string) => string;
+};
+
 const PACKAGE_LOCK_FILE = 'package-lock.json';
 const NODE_MODULES_DIRECTORY = 'node_modules';
+const NPM_ALIAS_PATTERN = /^npm:((?:@[^/\s]+\/)?[^@/\s]+)(?:@(.+))?$/;
+
+const getDependencyTarget = (packageName: string, versionRef: string): DependencyTarget => {
+  const aliasMatch = versionRef.match(NPM_ALIAS_PATTERN);
+  const targetPackageName = aliasMatch?.[1];
+
+  if (!targetPackageName) {
+    return {
+      packageName,
+      versionRef,
+      formatVersion: (version) => version,
+    };
+  }
+
+  return {
+    packageName: targetPackageName,
+    versionRef: aliasMatch[2],
+    formatVersion: (version) => `npm:${targetPackageName}@${version}`,
+  };
+};
 
 const extractVersion = (versionRef: string): string | undefined => {
   const version = coerce(versionRef, { includePrerelease: true });
@@ -58,25 +84,27 @@ const upgradeSection = async (section: Record<string, string> | undefined) => {
       continue;
     }
 
-    if (currentRef === '*') {
+    const target = getDependencyTarget(pkg, currentRef);
+
+    if (target.versionRef === '*') {
       logger.warn(`Skipping ${pkg} as it has '*' version`);
       continue;
     }
 
-    const currentVersion = extractVersion(currentRef);
-    const currentVersionReference = currentVersion ?? currentRef;
-    const currentMajor = getMajorVersion(currentRef);
+    const currentVersion = target.versionRef ? extractVersion(target.versionRef) : undefined;
+    const currentVersionReference = currentVersion ?? target.versionRef;
+    const currentMajor = target.versionRef ? getMajorVersion(target.versionRef) : null;
 
     let latestVersion = '';
 
-    if (SAME_MAJOR_UPGRADE_PACKAGES.has(pkg) && currentMajor !== null) {
-      latestVersion = await getLatestVersionOfMajor(pkg, currentMajor, currentVersionReference);
+    if (SAME_MAJOR_UPGRADE_PACKAGES.has(target.packageName) && currentMajor !== null) {
+      latestVersion = await getLatestVersionOfMajor(target.packageName, currentMajor, currentVersionReference);
     } else {
-      latestVersion = await getLatestVersion(pkg, currentVersionReference);
+      latestVersion = await getLatestVersion(target.packageName, currentVersionReference);
     }
 
     if (latestVersion) {
-      section[pkg] = latestVersion;
+      section[pkg] = target.formatVersion(latestVersion);
     }
   }
 };
