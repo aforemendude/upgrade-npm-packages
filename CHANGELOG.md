@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2 - 2026-08-01
+
+### Fixed
+
+- Upgrade npm alias dependencies using the aliased registry package name while preserving the `npm:` alias syntax,
+  including scoped packages and same-major restrictions.
+
 ## 2.1.1 - 2026-06-07
 
 ### Changed
