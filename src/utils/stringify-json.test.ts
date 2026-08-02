@@ -31,11 +31,6 @@ describe('stringifyJsonWithSortedKeys', () => {
       2,
     );
     expect(result).toBe(expected);
-
-    // Check order manually in string
-    const lines = result.split('\n').map((l) => l.trim());
-    const keys = lines.filter((l) => l.includes(':')).map((l) => l.split(':')[0]!.replace(/"/g, ''));
-    expect(keys).toEqual(['a', 'b', 'y', 'z']);
   });
 
   it('should NOT sort array elements but sort object keys inside arrays', () => {
@@ -46,16 +41,9 @@ describe('stringifyJsonWithSortedKeys', () => {
       ],
     };
     const result = stringifyJsonWithSortedKeys(obj);
-    const parsed = JSON.parse(result);
-    expect(parsed.list[0]).toEqual({ a: 1, b: 2 });
-    expect(parsed.list[1]).toEqual({ c: 3, d: 4 });
+    const expected = JSON.stringify(obj, ['a', 'b', 'c', 'd', 'list'], 2);
 
-    const lines = result.split('\n').map((l) => l.trim());
-    const keys = lines.filter((l) => l.includes(':')).map((l) => l.split(':')[0]!.replace(/"/g, ''));
-    // keys should be 'list' (from top), then 'a', 'b' (from first item), then 'c', 'd' (from second item)
-    // Actually allKeys = ['list', 'a', 'b', 'c', 'd'] sorted = ['a', 'b', 'c', 'd', 'list']
-    // But list is at the root, so it appears first in the string output.
-    expect(keys).toEqual(['list', 'a', 'b', 'c', 'd']);
+    expect(result).toBe(expected);
   });
 
   it('should handle null values correctly', () => {
@@ -75,8 +63,11 @@ describe('stringifyJsonWithSortedKeys', () => {
     expect(result).toBe(expected);
   });
 
-  it('should be stable across multiple calls', () => {
+  it('does not mutate the original object while sorting its serialized keys', () => {
     const obj = { c: 3, a: 1, b: 2 };
-    expect(stringifyJsonWithSortedKeys(obj)).toBe(stringifyJsonWithSortedKeys(obj));
+
+    stringifyJsonWithSortedKeys(obj);
+
+    expect(Object.keys(obj)).toEqual(['c', 'a', 'b']);
   });
 });

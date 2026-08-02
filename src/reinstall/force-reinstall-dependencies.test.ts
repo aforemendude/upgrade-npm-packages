@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installPackages } from '../npm/install-packages';
+import { logger } from '../utils/logger';
 import { forceReinstallDependencies } from './force-reinstall-dependencies';
 import { findReinstallTargets } from './find-reinstall-targets';
 
@@ -32,6 +33,8 @@ vi.mock('../utils/logger', () => ({
 describe('forceReinstallDependencies', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fs.rm).mockResolvedValue(undefined);
+    vi.mocked(installPackages).mockResolvedValue(undefined);
     vi.mocked(findReinstallTargets).mockResolvedValue({
       lockfilePaths: ['/repo/package-lock.json', '/repo/packages/app/package-lock.json'],
       nodeModulesPaths: ['/repo/node_modules', '/repo/packages/app/node_modules'],
@@ -39,8 +42,18 @@ describe('forceReinstallDependencies', () => {
   });
 
   it('deletes every target before installing once in the working directory', async () => {
+    const operations: string[] = [];
+    vi.mocked(fs.rm).mockImplementation(async (targetPath) => {
+      operations.push(`remove:${String(targetPath)}`);
+    });
+    vi.mocked(installPackages).mockImplementation(async (workingDirectory) => {
+      operations.push(`install:${workingDirectory}`);
+    });
+
     await forceReinstallDependencies('/repo');
 
+    expect(findReinstallTargets).toHaveBeenCalledTimes(1);
+    expect(findReinstallTargets).toHaveBeenCalledWith('/repo');
     expect(fs.rm).toHaveBeenCalledWith('/repo/package-lock.json', {
       force: true,
     });
@@ -52,5 +65,25 @@ describe('forceReinstallDependencies', () => {
     expect(fs.rm).toHaveBeenCalledWith('/repo/packages/app/node_modules', { recursive: true, force: true });
     expect(installPackages).toHaveBeenCalledTimes(1);
     expect(installPackages).toHaveBeenCalledWith('/repo');
+    expect(operations).toEqual([
+      'remove:/repo/package-lock.json',
+      'remove:/repo/packages/app/package-lock.json',
+      'remove:/repo/node_modules',
+      'remove:/repo/packages/app/node_modules',
+      'install:/repo',
+    ]);
+    expect(logger.info).toHaveBeenCalledWith('Running npm install in /repo...');
+    expect(logger.success).toHaveBeenCalledWith('Successfully reinstalled dependencies in /repo');
+  });
+
+  it('stops before installation when removing a target fails', async () => {
+    const removalError = new Error('permission denied');
+    vi.mocked(fs.rm).mockRejectedValueOnce(removalError);
+
+    await expect(forceReinstallDependencies('/repo')).rejects.toBe(removalError);
+
+    expect(fs.rm).toHaveBeenCalledTimes(1);
+    expect(installPackages).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
   });
 });

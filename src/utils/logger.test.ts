@@ -1,32 +1,48 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { logger } from './logger';
 
 describe('logger', () => {
-  it('should log info with blue color', () => {
-    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    logger.info('test message');
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('\x1b[34mINFO:\x1b[0m test message'));
-    spy.mockRestore();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it('should log success with green color', () => {
+  it('logs info with its exact blue prefix and forwards arguments', () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    logger.success('test message');
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('\x1b[32mSUCCESS:\x1b[0m test message'));
-    spy.mockRestore();
+    const context = { packageName: 'typescript' };
+
+    logger.info('test message', context);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('\x1b[34mINFO:\x1b[0m test message', context);
   });
 
-  it('should log warn with yellow color', () => {
+  it('logs success with its exact green prefix and forwards arguments', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const context = { packageName: 'typescript' };
+
+    logger.success('test message', context);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('\x1b[32mSUCCESS:\x1b[0m test message', context);
+  });
+
+  it('logs warnings with their exact yellow prefix and forwards arguments', () => {
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    logger.warn('test message');
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('\x1b[33mWARN:\x1b[0m test message'));
-    spy.mockRestore();
+    const context = { packageName: 'typescript' };
+
+    logger.warn('test message', context);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('\x1b[33mWARN:\x1b[0m test message', context);
   });
 
-  it('should log error with red color', () => {
+  it('logs errors with their exact red prefix and forwards arguments', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    logger.error('test message');
-    expect(spy).toHaveBeenCalledWith(expect.stringMatching(/\x1b\[31mERROR:\x1b\[0m test message/));
-    spy.mockRestore();
+    const context = { packageName: 'typescript' };
+
+    logger.error('test message', context);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith('\x1b[31mERROR:\x1b[0m test message', context);
   });
 });

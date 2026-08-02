@@ -1,15 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import spawn from 'cross-spawn';
-import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from './get-latest-version';
-import { installPackages } from './install-packages';
 import { EventEmitter } from 'events';
 import { Readable } from 'stream';
+import spawn from 'cross-spawn';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '../utils/logger';
+import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from './get-latest-version';
 
 vi.mock('cross-spawn', () => ({
   default: vi.fn(),
 }));
 
+vi.mock('../utils/logger', () => ({
+  logger: {
+    info: vi.fn(),
+    success: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const NOW = new Date('2026-01-15T12:00:00.000Z').getTime();
 
 type RegistryPackage = {
   versions: string[] | string;
@@ -18,7 +28,7 @@ type RegistryPackage = {
 };
 
 function daysAgo(days: number) {
-  return new Date(Date.now() - days * MS_PER_DAY).toISOString();
+  return new Date(NOW - days * MS_PER_DAY).toISOString();
 }
 
 function createTimeResponse(times: Record<string, string>) {
@@ -182,19 +192,19 @@ function setupSpawnMock() {
       }
     }
 
-    // installPackages
-    if (a[0] === 'install') {
-      return createMockChild('added 1 package\n') as any;
-    }
-    // error
     return createMockChild('', 1) as any;
   });
 }
 
-describe('npm package version selection', () => {
+describe('get-latest-version', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Date, 'now').mockReturnValue(NOW);
     setupSpawnMock();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('getLatestPackageVersion', () => {
@@ -264,6 +274,10 @@ describe('npm package version selection', () => {
     it('should handle errors', async () => {
       const version = await getLatestPackageVersion('non-existent-package');
       expect(version).toBe('');
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith(
+        'Could not fetch the latest version for non-existent-package. Skipping...',
+      );
     });
   });
 
@@ -286,31 +300,8 @@ describe('npm package version selection', () => {
     it('should handle errors', async () => {
       const version = await getLatestPackageVersionOfMajor('non-existent-package', 1);
       expect(version).toBe('');
-    });
-  });
-
-  describe('installPackages', () => {
-    it('should run npm install', async () => {
-      await expect(installPackages('./')).resolves.not.toThrow();
-    });
-  });
-
-  describe('cross-platform support', () => {
-    it('should spawn npm with shell: false', async () => {
-      await getLatestPackageVersion('typescript');
-      expect(spawn).toHaveBeenNthCalledWith(
-        1,
-        'npm',
-        ['view', 'typescript', 'versions', 'time', '--json'],
-        expect.objectContaining({ shell: false }),
-      );
-      expect(spawn).toHaveBeenNthCalledWith(
-        2,
-        'npm',
-        ['view', 'typescript@5.0.0', 'deprecated', '--json'],
-        expect.objectContaining({ shell: false }),
-      );
-      expect(spawn).toHaveBeenCalledTimes(2);
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith('Could not fetch versions for non-existent-package@1. Skipping...');
     });
   });
 });

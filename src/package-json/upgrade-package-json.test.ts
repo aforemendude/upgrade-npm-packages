@@ -1,7 +1,8 @@
 import * as fs from 'fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from '../npm/get-latest-version';
 import { logger } from '../utils/logger';
+import { stringifyJsonWithSortedKeys } from '../utils/stringify-json';
+import { upgradeDependencySection } from './upgrade-dependency-section';
 import { upgradePackageJson } from './upgrade-package-json';
 
 vi.mock('fs/promises', async () => {
@@ -13,13 +14,12 @@ vi.mock('fs/promises', async () => {
   };
 });
 
-vi.mock('../npm/get-latest-version', () => ({
-  getLatestPackageVersion: vi.fn().mockResolvedValue('2.0.0'),
-  getLatestPackageVersionOfMajor: vi.fn().mockResolvedValue('1.5.0'),
+vi.mock('./upgrade-dependency-section', () => ({
+  upgradeDependencySection: vi.fn(),
 }));
 
 vi.mock('../utils/stringify-json', () => ({
-  stringifyJsonWithSortedKeys: vi.fn((value) => JSON.stringify(value)),
+  stringifyJsonWithSortedKeys: vi.fn(),
 }));
 
 vi.mock('../utils/logger', () => ({
@@ -34,150 +34,79 @@ vi.mock('../utils/logger', () => ({
 describe('upgradePackageJson', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fs.readFile).mockResolvedValue('{}' as never);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+    vi.mocked(upgradeDependencySection).mockResolvedValue(undefined);
+    vi.mocked(stringifyJsonWithSortedKeys).mockReturnValue('formatted package json');
   });
 
-  it('upgrades dependency versions and writes the package.json', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(JSON.stringify({ dependencies: { 'some-pkg': '1.0.0' } }));
-
-    await upgradePackageJson(filePath);
-
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('some-pkg', '1.0.0');
-    expect(fs.writeFile).toHaveBeenCalledWith(filePath, expect.any(String), 'utf-8');
-  });
-
-  it('uses an aliased package registry name and preserves the alias', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(
+  it('upgrades both dependency sections and writes the formatted result', async () => {
+    vi.mocked(fs.readFile).mockResolvedValue(
       JSON.stringify({
-        dependencies: {
-          'custom-name': 'npm:other-package@1.0.0',
-        },
-      }),
+        dependencies: { runtime: '1.0.0' },
+        devDependencies: { development: '1.0.0' },
+        name: 'package',
+      }) as never,
     );
+    vi.mocked(upgradeDependencySection).mockImplementation(async (section) => {
+      if (section?.['runtime']) {
+        section['runtime'] = '2.0.0';
+      }
+      if (section?.['development']) {
+        section['development'] = '3.0.0';
+      }
+    });
 
-    await upgradePackageJson(filePath);
+    await upgradePackageJson('/repo/package.json');
 
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('other-package', '1.0.0');
-    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
-    expect(writtenPackageJson.dependencies['custom-name']).toBe('npm:other-package@2.0.0');
+    expect(fs.readFile).toHaveBeenCalledTimes(1);
+    expect(fs.readFile).toHaveBeenCalledWith('/repo/package.json', 'utf-8');
+    expect(upgradeDependencySection).toHaveBeenCalledTimes(2);
+    expect(upgradeDependencySection).toHaveBeenNthCalledWith(1, { runtime: '2.0.0' });
+    expect(upgradeDependencySection).toHaveBeenNthCalledWith(2, { development: '3.0.0' });
+    expect(stringifyJsonWithSortedKeys).toHaveBeenCalledTimes(1);
+    expect(stringifyJsonWithSortedKeys).toHaveBeenCalledWith({
+      dependencies: { runtime: '2.0.0' },
+      devDependencies: { development: '3.0.0' },
+      name: 'package',
+    });
+    expect(fs.writeFile).toHaveBeenCalledTimes(1);
+    expect(fs.writeFile).toHaveBeenCalledWith('/repo/package.json', 'formatted package json', 'utf-8');
+    expect(logger.success).toHaveBeenCalledTimes(1);
+    expect(logger.success).toHaveBeenCalledWith('Successfully upgraded packages in /repo/package.json');
   });
 
-  it('applies same-major upgrades to scoped packages behind an alias', async () => {
-    vi.mocked(getLatestPackageVersionOfMajor).mockResolvedValueOnce('18.1.1');
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(
-      JSON.stringify({
-        devDependencies: {
-          'node-types': 'npm:@types/node@^18.1.0',
-        },
-      }),
-    );
+  it('formats and writes package.json files without dependency sections', async () => {
+    vi.mocked(fs.readFile).mockResolvedValue('{"name":"package"}' as never);
 
-    await upgradePackageJson(filePath);
+    await upgradePackageJson('/repo/package.json');
 
-    expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '18.1.0');
-    expect(getLatestPackageVersion).not.toHaveBeenCalled();
-    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
-    expect(writtenPackageJson.devDependencies['node-types']).toBe('npm:@types/node@18.1.1');
+    expect(vi.mocked(upgradeDependencySection).mock.calls).toEqual([[undefined], [undefined]]);
+    expect(stringifyJsonWithSortedKeys).toHaveBeenCalledWith({ name: 'package' });
+    expect(fs.writeFile).toHaveBeenCalledWith('/repo/package.json', 'formatted package json', 'utf-8');
   });
 
-  it('writes package.json files without dependency sections', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue('{}');
+  it('logs and propagates file errors without writing a result', async () => {
+    const readError = new Error('permission denied');
+    vi.mocked(fs.readFile).mockRejectedValueOnce(readError);
 
-    await expect(upgradePackageJson(filePath)).resolves.not.toThrow();
-    expect(fs.writeFile).toHaveBeenCalledWith(filePath, '{}', 'utf-8');
+    await expect(upgradePackageJson('/repo/package.json')).rejects.toBe(readError);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith('Unable to process /repo/package.json:', 'permission denied');
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
   });
 
-  it("skips '*' versions and continues upgrading the section", async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(
-      JSON.stringify({
-        dependencies: {
-          'some-pkg': '*',
-          'other-pkg': '1.0.0',
-        },
-      }),
-    );
+  it('formats a non-Error failure for the log and propagates the original value', async () => {
+    vi.mocked(fs.readFile).mockResolvedValue('{"dependencies":{"package":"1.0.0"}}' as never);
+    vi.mocked(upgradeDependencySection).mockRejectedValueOnce('registry unavailable');
 
-    await upgradePackageJson(filePath);
+    await expect(upgradePackageJson('/repo/package.json')).rejects.toBe('registry unavailable');
 
-    expect(logger.warn).toHaveBeenCalledWith("Skipping some-pkg as it has '*' version");
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('other-pkg', '1.0.0');
-    expect(vi.mocked(getLatestPackageVersion).mock.calls.some(([packageName]) => packageName === 'some-pkg')).toBe(
-      false,
-    );
-  });
-
-  it('passes the current version to same-major package selection', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(
-      JSON.stringify({
-        devDependencies: { '@types/node': '^18.1.0' },
-      }),
-    );
-
-    await upgradePackageJson(filePath);
-
-    expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '18.1.0');
-    expect(getLatestPackageVersion).not.toHaveBeenCalled();
-  });
-
-  it('passes an incomplete range to same-major package selection', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(JSON.stringify({ devDependencies: { '@types/node': '^18' } }));
-
-    await upgradePackageJson(filePath);
-
-    expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '^18');
-    expect(getLatestPackageVersion).not.toHaveBeenCalled();
-  });
-
-  it('passes unsupported references to unrestricted version selection', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(
-      JSON.stringify({
-        devDependencies: { '@types/node': 'workspace:*' },
-      }),
-    );
-
-    await upgradePackageJson(filePath);
-
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('@types/node', 'workspace:*');
-    expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
-  });
-
-  it('keeps the current reference when no eligible version is returned', async () => {
-    vi.mocked(getLatestPackageVersion).mockResolvedValueOnce('');
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(JSON.stringify({ dependencies: { 'some-pkg': '^2.0.0' } }));
-
-    await upgradePackageJson(filePath);
-
-    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
-    expect(writtenPackageJson.dependencies['some-pkg']).toBe('^2.0.0');
-  });
-
-  it('passes an incomplete range to selection and pins the result', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(JSON.stringify({ dependencies: { 'some-pkg': '>=2' } }));
-
-    await upgradePackageJson(filePath);
-
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('some-pkg', '>=2');
-    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
-    expect(writtenPackageJson.dependencies['some-pkg']).toBe('2.0.0');
-  });
-
-  it('pins the current version extracted from a range', async () => {
-    const filePath = '/test/package.json';
-    (fs.readFile as any).mockResolvedValue(JSON.stringify({ dependencies: { 'some-pkg': '^2.0.0' } }));
-
-    await upgradePackageJson(filePath);
-
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('some-pkg', '2.0.0');
-    const writtenPackageJson = JSON.parse((fs.writeFile as any).mock.calls[0][1]);
-    expect(writtenPackageJson.dependencies['some-pkg']).toBe('2.0.0');
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith('Unable to process /repo/package.json:', 'registry unavailable');
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
   });
 });

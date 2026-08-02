@@ -22,6 +22,14 @@ describe('parseCliArguments', () => {
       forceReinstall: false,
       help: true,
     });
+    expect(parseCliArguments(['--force-reinstall', '--help'])).toEqual({
+      forceReinstall: true,
+      help: true,
+    });
+  });
+
+  it('reports one unexpected argument with a singular message', () => {
+    expect(() => parseCliArguments(['--unknown'])).toThrow('Unexpected argument: --unknown');
   });
 
   it('rejects unexpected arguments', () => {

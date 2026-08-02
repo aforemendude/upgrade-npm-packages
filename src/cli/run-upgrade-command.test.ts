@@ -43,6 +43,11 @@ describe('runUpgradeCommand', () => {
     expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json');
     expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json');
     expect(forceReinstallDependencies).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      'Skipping reinstall. Pass --force-reinstall to refresh package locks and node_modules.',
+    );
+    expect(logger.success).toHaveBeenCalledTimes(1);
+    expect(logger.success).toHaveBeenCalledWith('Finished processing all package.json files.');
   });
 
   it('runs one force reinstall after upgrading every package.json', async () => {
@@ -87,5 +92,21 @@ describe('runUpgradeCommand', () => {
 
     expect(logger.error).toHaveBeenCalledWith('No package.json files found.');
     expect(upgradePackageJson).not.toHaveBeenCalled();
+    expect(forceReinstallDependencies).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
+  });
+
+  it('stops processing and does not reinstall when a package.json upgrade fails', async () => {
+    const upgradeError = new Error('invalid package.json');
+    vi.mocked(upgradePackageJson).mockRejectedValueOnce(upgradeError);
+
+    await expect(runUpgradeCommand({ args: ['--force-reinstall'], workingDirectory: '/repo' })).rejects.toBe(
+      upgradeError,
+    );
+
+    expect(upgradePackageJson).toHaveBeenCalledTimes(1);
+    expect(upgradePackageJson).toHaveBeenCalledWith('/repo/package.json');
+    expect(forceReinstallDependencies).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
   });
 });
