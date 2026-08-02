@@ -2,9 +2,12 @@
 
 ## Reviewed scope and basis
 
-- Primary scope: `src/process.ts` and `src/utils/npm.ts`.
-- Contract context inspected only as needed: `src/cli.ts`, `src/config.ts`, `src/utils/json.ts`, `src/index.ts`,
-  `package.json`, `tsconfig.json`, `vitest.config.ts`, `README.md`, and `CHANGELOG.md`.
+- Primary scope: `src/package-json/dependency-reference.ts`, `src/package-json/upgrade-dependency-section.ts`,
+  `src/package-json/upgrade-package-json.ts`, the production modules in `src/npm/`, and the production modules in
+  `src/reinstall/`.
+- Contract context inspected only as needed: `src/cli/run-upgrade-command.ts`,
+  `src/config/dependency-upgrade-policy.ts`, `src/utils/find-file-system-entries.ts`, `src/utils/stringify-json.ts`,
+  `src/index.ts`, `package.json`, `tsconfig.json`, `vitest.config.ts`, `README.md`, and `CHANGELOG.md`.
 - Review basis: static tracing of dependency-reference classification, version selection, npm subprocesses, manifest
   writes, recursive cleanup, and directly related CLI call paths. Third-party source, generated output, and individual
   test cases/assertions were out of scope.
@@ -15,12 +18,14 @@
 ### 1. Local and remote non-registry specs can be replaced with a public-registry package
 
 - **Severity:** High
-- **References:** `src/process.ts:22-40`, `src/process.ts:87-108`, `src/utils/npm.ts:207-227`
-- **Problem:** The only special dependency-spec syntax recognized by `getDependencyTarget` is an `npm:` alias. Every
-  other reference is sent to `getLatestVersion` under the dependency key. A `file:`, `link:`, `workspace:`, git,
-  HTTP(S), tarball, or path reference is not classified as non-registry and is not skipped. For example,
-  `"shared": "workspace:*"` does not match the exact `'*'` guard, so the code queries registry metadata for `shared`
-  and, if that registry name exists, replaces the workspace reference with an exact registry version.
+- **References:** `src/package-json/dependency-reference.ts:3-31`,
+  `src/package-json/upgrade-dependency-section.ts:17-39`, `src/npm/get-latest-version.ts:16-57`,
+  `src/npm/npm-registry.ts:27-29`
+- **Problem:** The only special dependency-spec syntax recognized by `resolveDependencyUpgradeTarget` is an `npm:`
+  alias. Every other reference is sent to `getLatestPackageVersion` under the dependency key. A `file:`, `link:`,
+  `workspace:`, git, HTTP(S), tarball, or path reference is not classified as non-registry and is not skipped. For
+  example, `"shared": "workspace:*"` does not match the exact `'*'` guard, so the code queries registry metadata for
+  `shared` and, if that registry name exists, replaces the workspace reference with an exact registry version.
 - **Impact:** Running the upgrader can silently disconnect a project from its intended local or source-controlled
   dependency. If a public or squatted package shares the local dependency's name, a later install can fetch and execute
   that unrelated package, creating a dependency-confusion path in addition to breaking workspace or local-development
@@ -32,11 +37,13 @@
 ### 2. Force reinstall destroys nested independent projects but reinstalls only the starting directory
 
 - **Severity:** High
-- **References:** `src/process.ts:129-174`, `src/cli.ts:87-107`
-- **Problem:** The CLI can discover and upgrade package manifests anywhere below `cwd`, and `collectReinstallTargets`
-  likewise gathers every nested `package-lock.json` and `node_modules`. `forceReinstall` deletes all gathered targets
-  but invokes `npm install` exactly once with `cwd`. It does not establish that the starting directory is an npm
-  workspace root or that its install owns the nested projects.
+- **References:** `src/reinstall/find-reinstall-targets.ts:11-35`, `src/reinstall/force-reinstall-dependencies.ts:6-23`,
+  `src/utils/find-file-system-entries.ts:15-42`, `src/cli/run-upgrade-command.ts:23-42`
+- **Problem:** The CLI can discover and upgrade package manifests anywhere below `workingDirectory`, and
+  `findReinstallTargets` likewise gathers every nested `package-lock.json` and `node_modules`.
+  `forceReinstallDependencies` deletes all gathered targets but invokes `npm install` exactly once with
+  `workingDirectory`. It does not establish that the starting directory is an npm workspace root or that its install
+  owns the nested projects.
 - **Impact:** When the starting directory contains independent projects, or is merely an aggregation directory without a
   root npm workspace, the command removes every child project's lockfile and installed dependencies and does not
   recreate them. This leaves multiple projects broken and loses their resolved dependency state despite the option being
@@ -50,12 +57,13 @@
 ### 3. Same-major selection mistakes a range's minimum for its current major
 
 - **Severity:** Medium
-- **References:** `src/process.ts:52-71`, `src/process.ts:94-103`, `src/utils/npm.ts:207-222`
-- **Problem:** For a same-major package whose reference does not contain a coercible complete version, `getMajorVersion`
-  returns `minVersion(range).major`. A range's minimum is not evidence of the currently selected major and can be far
-  below the intended upper end. For example, SemVer evaluates both `<9` and `<=8` with minimum `0.0.0`; the upgrader
-  therefore filters `eslint` metadata to major 0 and can pin an old 0.x release. Multi-major ranges such as `>=8 <10`
-  similarly force major 8 even when major 9 is allowed or currently resolved.
+- **References:** `src/package-json/dependency-reference.ts:33-53`,
+  `src/package-json/upgrade-dependency-section.ts:29-35`, `src/npm/get-latest-version.ts:16-31`
+- **Problem:** For a same-major package whose reference does not contain a coercible complete version,
+  `getMajorVersionFromReference` returns `minVersion(range).major`. A range's minimum is not evidence of the currently
+  selected major and can be far below the intended upper end. For example, SemVer evaluates both `<9` and `<=8` with
+  minimum `0.0.0`; the upgrader therefore filters `eslint` metadata to major 0 and can pin an old 0.x release.
+  Multi-major ranges such as `>=8 <10` similarly force major 8 even when major 9 is allowed or currently resolved.
 - **Impact:** Valid dependency ranges can be downgraded to an obsolete major or held below an already selected
   compatible major. For tooling packages in the same-major set, that can break configuration, APIs, and the consuming
   build while appearing to enforce compatibility.
@@ -66,11 +74,11 @@
 ### 4. Registry lookups are repeated serially for every dependency occurrence
 
 - **Severity:** Medium
-- **References:** `src/process.ts:74-109`, `src/utils/npm.ts:66-85`, `src/utils/npm.ts:122-149`,
-  `src/utils/npm.ts:207-227`
+- **References:** `src/package-json/upgrade-dependency-section.ts:12-40`, `src/npm/npm-registry.ts:27-50`,
+  `src/npm/select-latest-version.ts:43-72`, `src/npm/get-latest-version.ts:16-57`
 - **Problem:** Each dependency occurrence synchronously starts a fresh `npm view <package> versions time --json`
   subprocess and one or more deprecation subprocesses. The only deprecation cache is allocated inside one
-  `findLatestEligibleVersion` call, so it is discarded before the same package is encountered in another section or
+  `selectLatestEligibleVersion` call, so it is discarded before the same package is encountered in another section or
   manifest. There is no metadata or package/version deprecation cache across `dependencies`, `devDependencies`, or
   recursively processed package manifests, and the `for` loop waits for every lookup before starting the next.
 - **Impact:** Repeated common dependencies in a workspace multiply identical npm process startup, registry traffic,
@@ -84,7 +92,7 @@
 ### 5. Manifest replacement is non-atomic and can leave truncated JSON on write failure
 
 - **Severity:** Medium
-- **References:** `src/process.ts:112-125`
+- **References:** `src/package-json/upgrade-package-json.ts:12-26`
 - **Problem:** After all dependency lookups, `upgradePackageJson` writes directly over the existing manifest with
   `fs.writeFile`. Opening an existing file for this operation truncates it before the replacement is durably complete.
   If the process is interrupted or the write fails after truncation (for example, due to an I/O or out-of-space error),
@@ -106,7 +114,7 @@
 ## Checks and areas not covered
 
 - `./node_modules/.bin/tsc --noEmit` completed successfully.
-- `./node_modules/.bin/vitest run src/process.test.ts src/utils/npm.test.ts` completed successfully: 2 test files and 30
+- `./node_modules/.bin/vitest run src/package-json src/npm src/reinstall` completed successfully: 12 test files and 86
   tests passed. The test cases, fixtures, logic, assertions, and coverage adequacy were not reviewed.
 - A focused SemVer probe using the installed `semver` dependency confirmed that `<9` and `<=8` both have minimum `0.0.0`
   (major 0), while `>=8 <9` and `^8` have minimum major 8.

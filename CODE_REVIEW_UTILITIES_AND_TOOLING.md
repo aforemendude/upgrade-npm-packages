@@ -2,12 +2,13 @@
 
 ## Scope and review basis
 
-- **Reviewed scope:** `src/utils/json.ts`, `src/utils/logger.ts`, `package.json`, `package-lock.json`, `tsconfig.json`,
-  `vitest.config.ts`, `.gitignore`, `.prettierrc.json`, `.vscode/settings.json`, and repository setup, build, packaging,
-  dependency, and test infrastructure.
-- **Contract-validation context inspected:** `src/index.ts`, `src/cli.ts`, `src/process.ts`, `src/utils/npm.ts`,
-  `README.md`, and `CHANGELOG.md`. These files were used only to trace callers, entry-point behavior, documented
-  requirements, and packaging contracts.
+- **Reviewed scope:** `src/utils/stringify-json.ts`, `src/utils/logger.ts`, `package.json`, `package-lock.json`,
+  `tsconfig.json`, `vitest.config.ts`, `.gitignore`, `.prettierrc.json`, `.vscode/settings.json`, and repository setup,
+  build, packaging, dependency, and test infrastructure.
+- **Contract-validation context inspected:** `src/index.ts`, the production modules in `src/cli/`,
+  `src/package-json/upgrade-dependency-section.ts`, `src/package-json/upgrade-package-json.ts`, the production modules
+  in `src/npm/`, `README.md`, and `CHANGELOG.md`. These files were used only to trace callers, entry-point behavior,
+  documented requirements, and packaging contracts.
 - **Review basis:** current worktree at commit `fe9db76723e8df59079d94c3b880df862326d239` (2026-08-01). The whole
   repository was confirmed clean before review reports were created. Generated output, third-party source, and
   individual test cases, fixtures, logic, and assertions were out of scope.
@@ -18,12 +19,12 @@
 ### UTL-001 — Recursive key sorting changes conditional export/import semantics
 
 - **Severity:** High
-- **Location:** `src/utils/json.ts:2-15`; applied to manifests at `src/process.ts:114-121`; documented at
-  `README.md:39-46`
-- **Problem:** `stringify()` collects every property name in the parsed manifest and passes one alphabetically sorted
-  replacer list to `JSON.stringify`, so it reorders keys in every nested object. Object order is semantically
-  significant in Node.js conditional `exports` and `imports`: earlier matching conditions take precedence and the
-  always-matching `default` condition must come last
+- **Location:** `src/utils/stringify-json.ts:1-23`; applied to manifests at
+  `src/package-json/upgrade-package-json.ts:14-21`; documented at `README.md:39-46`
+- **Problem:** `stringifyJsonWithSortedKeys()` collects every property name in the parsed manifest and passes one
+  alphabetically sorted replacer list to `JSON.stringify`, so it reorders keys in every nested object. Object order is
+  semantically significant in Node.js conditional `exports` and `imports`: earlier matching conditions take precedence
+  and the always-matching `default` condition must come last
   ([Node.js package documentation](https://nodejs.org/api/packages.html#conditional-exports)). The serializer instead
   transforms a valid `{ "node": "./node.js", "default": "./default.js" }` condition map into
   `{ "default": "./default.js", "node": "./node.js" }`.
@@ -40,7 +41,7 @@
 ### UTL-002 — The package import entry point executes the mutating CLI
 
 - **Severity:** Medium
-- **Location:** `package.json:38`; behavior defined by `src/index.ts:3-5` and reached through `src/cli.ts:115-117`
+- **Location:** `package.json:38`; behavior defined by `src/index.ts:3-5` and reached through `src/cli/run-cli.ts:6-11`
 - **Problem:** `main` advertises `dist/index.js` as the package's programmatic import entry point, but that file is the
   executable wrapper and unconditionally calls `runCli()`. Importing or requiring the package is therefore not a
   side-effect-free module load: it starts the CLI in the importing process and uses that process's arguments and current
@@ -105,7 +106,7 @@
 ### UTL-006 — Logger color escapes cannot be disabled and leak into redirected output
 
 - **Severity:** Low
-- **Location:** `src/utils/logger.ts:1-22`
+- **Location:** `src/utils/logger.ts:1-25`
 - **Problem:** Every log prefix contains hard-coded ANSI color and reset sequences, regardless of whether its
   destination stream is an interactive terminal or color output has been disabled. A redirected `logger.info()` probe
   confirmed that stdout begins with the raw bytes for `ESC[34m`; the same pattern is used for warning and error output.
@@ -117,8 +118,8 @@
 
 ## Reviewed segments without additional findings
 
-- No additional finding was verified in `src/utils/json.ts` beyond UTL-001. This statement does not imply the utility is
-  defect-free.
+- No additional finding was verified in `src/utils/stringify-json.ts` beyond UTL-001. This statement does not imply the
+  utility is defect-free.
 - No additional finding was verified in `src/utils/logger.ts` beyond UTL-006. This statement does not imply the logger
   is defect-free.
 - No additional findings were verified in `tsconfig.json`, `vitest.config.ts`, `.gitignore`, `.prettierrc.json`, or
