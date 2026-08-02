@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { stringify } from './json';
+import { stringifyJsonWithSortedKeys } from './stringify-json';
 
-describe('json util stringify', () => {
+describe('stringifyJsonWithSortedKeys', () => {
   it('should sort simple object keys alphabetically', () => {
     const obj = { c: 3, a: 1, b: 2 };
-    const result = stringify(obj);
+    const result = stringifyJsonWithSortedKeys(obj);
     const expected = JSON.stringify({ a: 1, b: 2, c: 3 }, null, 2);
     expect(result).toBe(expected);
   });
@@ -17,7 +17,7 @@ describe('json util stringify', () => {
         b: 3,
       },
     };
-    const result = stringify(obj);
+    const result = stringifyJsonWithSortedKeys(obj);
     // Expected order: a, a.b, a.y, z
     const expected = JSON.stringify(
       {
@@ -45,7 +45,7 @@ describe('json util stringify', () => {
         { d: 4, c: 3 },
       ],
     };
-    const result = stringify(obj);
+    const result = stringifyJsonWithSortedKeys(obj);
     const parsed = JSON.parse(result);
     expect(parsed.list[0]).toEqual({ a: 1, b: 2 });
     expect(parsed.list[1]).toEqual({ c: 3, d: 4 });
@@ -60,7 +60,7 @@ describe('json util stringify', () => {
 
   it('should handle null values correctly', () => {
     const obj = { b: null, a: 1 };
-    const result = stringify(obj);
+    const result = stringifyJsonWithSortedKeys(obj);
     expect(result).toBe(JSON.stringify({ a: 1, b: null }, ['a', 'b'], 2));
   });
 
@@ -69,7 +69,7 @@ describe('json util stringify', () => {
       b: { a: 1 },
       a: 2,
     };
-    const result = stringify(obj);
+    const result = stringifyJsonWithSortedKeys(obj);
     // allKeys = ['b', 'a'] sorted = ['a', 'b']
     const expected = JSON.stringify({ a: 2, b: { a: 1 } }, ['a', 'b'], 2);
     expect(result).toBe(expected);
@@ -77,6 +77,6 @@ describe('json util stringify', () => {
 
   it('should be stable across multiple calls', () => {
     const obj = { c: 3, a: 1, b: 2 };
-    expect(stringify(obj)).toBe(stringify(obj));
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(stringifyJsonWithSortedKeys(obj));
   });
 });

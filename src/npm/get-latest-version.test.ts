@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import spawn from 'cross-spawn';
-import { getLatestVersion, getLatestVersionOfMajor, installPackages } from './npm';
+import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from './get-latest-version';
+import { installPackages } from './install-packages';
 import { EventEmitter } from 'events';
 import { Readable } from 'stream';
 
@@ -190,56 +191,56 @@ function setupSpawnMock() {
   });
 }
 
-describe('npm util', () => {
+describe('npm package version selection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupSpawnMock();
   });
 
-  describe('getLatestVersion', () => {
+  describe('getLatestPackageVersion', () => {
     it('should fetch latest version at least seven days old', async () => {
-      const version = await getLatestVersion('typescript');
+      const version = await getLatestPackageVersion('typescript');
       expect(version).toBe('5.0.0');
     });
 
     it('should return the current version when it is newer than the latest eligible version', async () => {
-      const version = await getLatestVersion('fresh-current', '2.0.0');
+      const version = await getLatestPackageVersion('fresh-current', '2.0.0');
       expect(version).toBe('2.0.0');
       expect(spawn).toHaveBeenCalledTimes(1);
     });
 
     it('should return empty when no version is at least seven days old', async () => {
-      const version = await getLatestVersion('brand-new');
+      const version = await getLatestPackageVersion('brand-new');
       expect(version).toBe('');
     });
 
     it('should return the latest old enough version that satisfies an incomplete range', async () => {
-      const version = await getLatestVersion('range-eligible', '>=2');
+      const version = await getLatestPackageVersion('range-eligible', '>=2');
       expect(version).toBe('2.1.0');
     });
 
     it('should return the earliest version satisfying an incomplete range when none are old enough', async () => {
-      const version = await getLatestVersion('range-current', '>=2');
+      const version = await getLatestPackageVersion('range-current', '>=2');
       expect(version).toBe('2.1.0');
     });
 
     it('should exclude deprecated versions from incomplete range fallback selection', async () => {
-      const version = await getLatestVersion('range-deprecated-current', '>=2');
+      const version = await getLatestPackageVersion('range-deprecated-current', '>=2');
       expect(version).toBe('2.2.0');
     });
 
     it('should ignore invalid current references while selecting the latest old enough version', async () => {
-      const version = await getLatestVersion('workspace-current', 'workspace:*');
+      const version = await getLatestPackageVersion('workspace-current', 'workspace:*');
       expect(version).toBe('2.0.0');
     });
 
     it('should exclude deprecated versions from latest selection', async () => {
-      const version = await getLatestVersion('deprecated-latest');
+      const version = await getLatestPackageVersion('deprecated-latest');
       expect(version).toBe('2.0.0');
     });
 
     it('should not check deprecated versions below the current version to avoid a downgrade', async () => {
-      const version = await getLatestVersion('deprecated-current', '2.0.0');
+      const version = await getLatestPackageVersion('deprecated-current', '2.0.0');
       expect(version).toBe('');
       expect(spawn).toHaveBeenNthCalledWith(
         2,
@@ -251,39 +252,39 @@ describe('npm util', () => {
     });
 
     it('should skip the minimum age check for @aforemendude packages', async () => {
-      const version = await getLatestVersion('@aforemendude/fresh-package');
+      const version = await getLatestPackageVersion('@aforemendude/fresh-package');
       expect(version).toBe('1.1.0');
     });
 
     it('should still exclude deprecated @aforemendude package versions', async () => {
-      const version = await getLatestVersion('@aforemendude/deprecated-fresh-package');
+      const version = await getLatestPackageVersion('@aforemendude/deprecated-fresh-package');
       expect(version).toBe('1.0.0');
     });
 
     it('should handle errors', async () => {
-      const version = await getLatestVersion('non-existent-package');
+      const version = await getLatestPackageVersion('non-existent-package');
       expect(version).toBe('');
     });
   });
 
-  describe('getLatestVersionOfMajor', () => {
+  describe('getLatestPackageVersionOfMajor', () => {
     it('should fetch latest version of major at least seven days old (array response)', async () => {
-      const version = await getLatestVersionOfMajor('@types/node', 18);
+      const version = await getLatestPackageVersionOfMajor('@types/node', 18);
       expect(version).toBe('18.1.1');
     });
 
     it('should fetch latest version of major (string versions response)', async () => {
-      const version = await getLatestVersionOfMajor('single-major', 20);
+      const version = await getLatestPackageVersionOfMajor('single-major', 20);
       expect(version).toBe('20.0.0');
     });
 
     it('should exclude deprecated versions when selecting within a major', async () => {
-      const version = await getLatestVersionOfMajor('deprecated-major', 1);
+      const version = await getLatestPackageVersionOfMajor('deprecated-major', 1);
       expect(version).toBe('1.0.0');
     });
 
     it('should handle errors', async () => {
-      const version = await getLatestVersionOfMajor('non-existent-package', 1);
+      const version = await getLatestPackageVersionOfMajor('non-existent-package', 1);
       expect(version).toBe('');
     });
   });
@@ -296,7 +297,7 @@ describe('npm util', () => {
 
   describe('cross-platform support', () => {
     it('should spawn npm with shell: false', async () => {
-      await getLatestVersion('typescript');
+      await getLatestPackageVersion('typescript');
       expect(spawn).toHaveBeenNthCalledWith(
         1,
         'npm',

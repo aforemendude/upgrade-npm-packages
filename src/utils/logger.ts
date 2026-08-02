@@ -4,23 +4,22 @@ const COLORS = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
 };
+
+const formatMessage = (level: string, color: string, message: string): string =>
+  `${color}${level}:${COLORS.reset} ${message}`;
 
 export const logger = {
-  info: (message: string, ...args: any[]) => {
-    console.log(`${COLORS.blue}INFO:${COLORS.reset} ${message}`, ...args);
+  info: (message: string, ...args: unknown[]) => {
+    console.log(formatMessage('INFO', COLORS.blue, message), ...args);
   },
-  success: (message: string, ...args: any[]) => {
-    console.log(`${COLORS.green}SUCCESS:${COLORS.reset} ${message}`, ...args);
+  success: (message: string, ...args: unknown[]) => {
+    console.log(formatMessage('SUCCESS', COLORS.green, message), ...args);
   },
-  warn: (message: string, ...args: any[]) => {
-    console.warn(`${COLORS.yellow}WARN:${COLORS.reset} ${message}`, ...args);
+  warn: (message: string, ...args: unknown[]) => {
+    console.warn(formatMessage('WARN', COLORS.yellow, message), ...args);
   },
-  error: (message: string, ...args: any[]) => {
-    console.error(`${COLORS.red}ERROR:${COLORS.reset} ${message}`, ...args);
+  error: (message: string, ...args: unknown[]) => {
+    console.error(formatMessage('ERROR', COLORS.red, message), ...args);
   },
 };
-
-export default logger;

@@ -1,14 +1,14 @@
 # Upgrade NPM Packages
 
-A CLI that recursively finds `package.json` files below the current working directory, updates their `dependencies` and
-`devDependencies`, and optionally performs a clean reinstall from the current working directory.
+A CLI that recursively finds regular `package.json` files below the current working directory, updates their
+`dependencies` and `devDependencies`, and optionally performs a clean reinstall from the current working directory.
 
-The command treats every discovered `package.json` independently. It skips `node_modules` directories, but otherwise
-walks all subdirectories from the directory where the command is run.
+The command treats every discovered `package.json` independently. It skips `node_modules` directories and symbolic-link
+manifests, but otherwise walks all subdirectories from the directory where the command is run.
 
 ## Requirements
 
-- Node.js 18 or newer
+- Node.js 20 or newer
 - npm
 
 ## Installation
@@ -82,6 +82,24 @@ be interpreted as a SemVer major version:
 - If version lookup fails for a dependency, that dependency is skipped.
 - If processing a `package.json` fails, the command stops and exits with an error.
 - When `--force-reinstall` is present, cleanup or `npm install` failure stops the command and exits with an error.
+
+## Project Structure
+
+Production code is grouped by responsibility, and tests are colocated with the modules they cover:
+
+```text
+src/
+├── cli/           argument parsing, help output, command orchestration, and process lifecycle
+├── config/        dependency-upgrade policy
+├── npm/           npm command execution, registry access, and version selection
+├── package-json/  manifest discovery, dependency-reference parsing, and manifest upgrades
+├── reinstall/     reinstall-target discovery, cleanup, and installation
+├── utils/         shared filesystem, JSON, and logging utilities
+└── index.ts       executable entry point
+```
+
+The recursive filesystem search is shared by package discovery and reinstall cleanup. npm output parsing and command
+execution are likewise centralized so registry and installation modules do not duplicate subprocess handling.
 
 ## Development
 
