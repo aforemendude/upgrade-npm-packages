@@ -32,12 +32,15 @@ export const upgradeDependencySection = async (section: DependencySection | unde
     }
 
     const currentVersion = target.versionReference ? extractVersionFromReference(target.versionReference) : undefined;
-    const selectionConstraint = currentVersion ?? target.versionReference;
-    const currentMajor = target.versionReference ? getMajorVersionFromReference(target.versionReference) : null;
-    const selectedVersion =
-      SAME_MAJOR_UPGRADE_PACKAGES.has(target.packageName) && currentMajor !== null
-        ? await getLatestPackageVersionOfMajor(target.packageName, currentMajor, selectionConstraint)
-        : await getLatestPackageVersion(target.packageName, selectionConstraint);
+    const usesSameMajorPolicy = SAME_MAJOR_UPGRADE_PACKAGES.has(target.packageName);
+    const currentMajor =
+      usesSameMajorPolicy && target.versionReference ? getMajorVersionFromReference(target.versionReference) : null;
+    const selectsSameMajor = usesSameMajorPolicy && currentMajor !== null;
+    const selectionConstraint =
+      usesSameMajorPolicy && !selectsSameMajor ? target.versionReference : (currentVersion ?? target.versionReference);
+    const selectedVersion = selectsSameMajor
+      ? await getLatestPackageVersionOfMajor(target.packageName, currentMajor, selectionConstraint)
+      : await getLatestPackageVersion(target.packageName, selectionConstraint);
 
     if (selectedVersion) {
       section[packageName] = target.formatVersion(selectedVersion);

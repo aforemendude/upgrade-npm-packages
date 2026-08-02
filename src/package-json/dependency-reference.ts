@@ -1,5 +1,5 @@
 import npmPackageArg = require('npm-package-arg');
-import { coerce, minVersion, parse, validRange } from 'semver';
+import { coerce, minVersion, parse, subset, validRange } from 'semver';
 
 export type DependencyUpgradeTarget = {
   formatVersion: (version: string) => string;
@@ -56,14 +56,15 @@ export const extractVersionFromReference = (versionReference: string): string | 
 };
 
 export const getMajorVersionFromReference = (versionReference: string): number | null => {
-  const exactVersion = extractVersionFromReference(versionReference);
-  if (exactVersion) {
-    return parse(exactVersion)?.major ?? null;
+  if (!validRange(versionReference)) {
+    const exactVersion = extractVersionFromReference(versionReference);
+    return exactVersion ? (parse(exactVersion)?.major ?? null) : null;
   }
 
-  if (!validRange(versionReference)) {
+  const minimumVersion = minVersion(versionReference);
+  if (!minimumVersion || !subset(versionReference, `${minimumVersion.major}.x`, { includePrerelease: true })) {
     return null;
   }
 
-  return minVersion(versionReference)?.major ?? null;
+  return minimumVersion.major;
 };

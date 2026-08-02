@@ -101,6 +101,25 @@ describe('upgradeDependencySection', () => {
     },
   );
 
+  it.each([
+    ['eslint', '<9', '<9'],
+    ['eslint', '<=8', '<=8'],
+    ['@eslint/js', '>=8 <10', '>=8 <10'],
+    ['@types/node', '>=18.0.0 <20.0.0', '>=18.0.0 <20.0.0'],
+  ])(
+    'keeps the full range when %s reference %s permits multiple majors',
+    async (packageName, currentReference, selectionConstraint) => {
+      const section = { [packageName]: currentReference };
+
+      await upgradeDependencySection(section);
+
+      expect(getLatestPackageVersion).toHaveBeenCalledTimes(1);
+      expect(getLatestPackageVersion).toHaveBeenCalledWith(packageName, selectionConstraint);
+      expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
+      expect(section).toEqual({ [packageName]: '2.0.0' });
+    },
+  );
+
   it('selects an aliased package by registry name and preserves the alias', async () => {
     const section = {
       'node-types': 'npm:@types/node@^18.1.0',

@@ -74,6 +74,11 @@ describe('getMajorVersionFromReference', () => {
     ['>=20 <21', 20],
     ['workspace:^3.2.1', 3],
     ['latest', null],
+    ['<9', null],
+    ['<=8', null],
+    ['>=8 <10', null],
+    ['>=8.0.0 <10.0.0', null],
+    ['^18.1.0 || ^19.0.0', null],
   ])('resolves the major for %p as %p', (reference, expectedMajor) => {
     expect(getMajorVersionFromReference(reference)).toBe(expectedMajor);
   });

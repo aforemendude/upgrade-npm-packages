@@ -35,23 +35,6 @@
   anything, fail safely when `cwd` is not an npm project or when nested lockfiles/modules fall outside the validated
   root workspace.
 
-### 3. Same-major selection mistakes a range's minimum for its current major
-
-- **Severity:** Medium
-- **References:** `src/package-json/dependency-reference.ts:33-53`,
-  `src/package-json/upgrade-dependency-section.ts:29-35`, `src/npm/get-latest-version.ts:16-31`
-- **Problem:** For a same-major package whose reference does not contain a coercible complete version,
-  `getMajorVersionFromReference` returns `minVersion(range).major`. A range's minimum is not evidence of the currently
-  selected major and can be far below the intended upper end. For example, SemVer evaluates both `<9` and `<=8` with
-  minimum `0.0.0`; the upgrader therefore filters `eslint` metadata to major 0 and can pin an old 0.x release.
-  Multi-major ranges such as `>=8 <10` similarly force major 8 even when major 9 is allowed or currently resolved.
-- **Impact:** Valid dependency ranges can be downgraded to an obsolete major or held below an already selected
-  compatible major. For tooling packages in the same-major set, that can break configuration, APIs, and the consuming
-  build while appearing to enforce compatibility.
-- **Recommendation:** Apply same-major filtering only when the reference uniquely identifies one major. For ranges
-  spanning multiple majors, keep the range as the selection constraint (or derive the resolved version from an
-  applicable lockfile) rather than treating the mathematical minimum as the current version.
-
 ### 4. Registry lookups are repeated serially for every dependency occurrence
 
 - **Severity:** Medium
