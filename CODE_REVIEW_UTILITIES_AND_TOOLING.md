@@ -16,28 +16,6 @@
 
 ## Findings
 
-### UTL-001 — Recursive key sorting changes conditional export/import semantics
-
-- **Severity:** High
-- **Location:** `src/utils/stringify-json.ts:1-23`; applied to manifests at
-  `src/package-json/upgrade-package-json.ts:14-21`; documented at `README.md:39-46`
-- **Problem:** `stringifyJsonWithSortedKeys()` collects every property name in the parsed manifest and passes one
-  alphabetically sorted replacer list to `JSON.stringify`, so it reorders keys in every nested object. Object order is
-  semantically significant in Node.js conditional `exports` and `imports`: earlier matching conditions take precedence
-  and the always-matching `default` condition must come last
-  ([Node.js package documentation](https://nodejs.org/api/packages.html#conditional-exports)). The serializer instead
-  transforms a valid `{ "node": "./node.js", "default": "./default.js" }` condition map into
-  `{ "default": "./default.js", "node": "./node.js" }`.
-- **Impact:** Processing a package that uses conditional entry points can silently change which file Node loads. Because
-  `default` sorts ahead of conditions such as `import`, `node`, and `require`, it can shadow every later branch,
-  breaking environment-specific, ESM/CommonJS, native/fallback, or development/production entry points immediately after
-  an otherwise successful dependency upgrade. The CLI recursively processes monorepo package manifests, so one
-  invocation can alter multiple published packages or applications.
-- **Recommendation:** Do not globally sort arbitrary nested manifest objects. Preserve existing key order by default and
-  sort only fields whose order is known to be non-semantic, such as dependency-name maps. At minimum, preserve condition
-  object order under `exports` and `imports` (including nested conditions), and revise the blanket sorting promise in
-  the README.
-
 ### UTL-002 — The package import entry point executes the mutating CLI
 
 - **Severity:** Medium

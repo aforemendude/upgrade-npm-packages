@@ -184,4 +184,24 @@ describe('stringifyJsonWithSortedKeys', () => {
       ),
     );
   });
+
+  it('sorts numeric keys behind special-character keys', () => {
+    const obj = {
+      values: {
+        2: 'two',
+        '-flag': 'flag',
+        10: 'ten',
+        '#alias': 'alias',
+      },
+    };
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(`{
+  "values": {
+    "#alias": "alias",
+    "-flag": "flag",
+    "10": "ten",
+    "2": "two"
+  }
+}`);
+  });
 });

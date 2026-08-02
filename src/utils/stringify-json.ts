@@ -16,7 +16,7 @@ const sortJsonValue = (value: unknown, context: SortContext, isRoot: boolean): u
   const preserveKeyOrder = context === 'conditions' || isConditionalExportsObject;
   const orderedKeys = preserveKeyOrder ? keys : [...keys].sort();
 
-  return Object.fromEntries(
+  const sortedValue = Object.fromEntries(
     orderedKeys.map((key) => {
       let nestedContext: SortContext = 'regular';
 
@@ -31,6 +31,11 @@ const sortJsonValue = (value: unknown, context: SortContext, isRoot: boolean): u
       return [key, sortJsonValue(value[key], nestedContext, false)];
     }),
   );
+
+  // JSON.stringify otherwise promotes integer-index keys ahead of the requested lexicographic order.
+  return new Proxy(sortedValue, {
+    ownKeys: () => orderedKeys,
+  });
 };
 
 export const stringifyJsonWithSortedKeys = (value: unknown): string => {
