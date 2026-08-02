@@ -43,7 +43,8 @@ For each `package.json` file it finds, the tool:
 3. Checks eligible candidate versions with `npm view <package>@<version> deprecated --json` until it finds a
    non-deprecated version.
 4. Replaces each eligible dependency reference with an exact version string.
-5. Writes the `package.json` with two-space formatting and alphabetically sorted object keys.
+5. Writes the `package.json` with two-space formatting and alphabetically sorted object keys, while preserving the
+   matching order of conditional keys in `exports` and `imports`.
 
 When `--force-reinstall` is present, the tool then deletes every discovered `package-lock.json` file and `node_modules`
 directory below the current working directory, and runs `npm install` once in the current working directory. It does

@@ -70,4 +70,118 @@ describe('stringifyJsonWithSortedKeys', () => {
 
     expect(Object.keys(obj)).toEqual(['c', 'a', 'b']);
   });
+
+  it('sorts export subpaths while preserving nested conditional export key order', () => {
+    const obj = {
+      exports: {
+        './feature': {
+          node: {
+            require: './feature-node.cjs',
+            import: './feature-node.js',
+            default: './feature-node-fallback.js',
+          },
+          default: './feature.js',
+        },
+        '.': {
+          import: './index.js',
+          require: './index.cjs',
+          default: './index-fallback.js',
+        },
+      },
+    };
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(
+      JSON.stringify(
+        {
+          exports: {
+            '.': {
+              import: './index.js',
+              require: './index.cjs',
+              default: './index-fallback.js',
+            },
+            './feature': {
+              node: {
+                require: './feature-node.cjs',
+                import: './feature-node.js',
+                default: './feature-node-fallback.js',
+              },
+              default: './feature.js',
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+  });
+
+  it('preserves top-level conditional export key order', () => {
+    const obj = {
+      exports: {
+        node: './index-node.js',
+        import: './index.js',
+        default: './index-fallback.js',
+      },
+    };
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(JSON.stringify(obj, null, 2));
+  });
+
+  it('sorts import specifiers while preserving conditional import key order', () => {
+    const obj = {
+      imports: {
+        '#utilities': {
+          node: '#utilities-node',
+          default: '#utilities-fallback',
+        },
+        '#constants': {
+          development: '#constants-development',
+          default: '#constants-production',
+        },
+      },
+    };
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(
+      JSON.stringify(
+        {
+          imports: {
+            '#constants': {
+              development: '#constants-development',
+              default: '#constants-production',
+            },
+            '#utilities': {
+              node: '#utilities-node',
+              default: '#utilities-fallback',
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+  });
+
+  it('continues sorting condition-like keys outside exports and imports', () => {
+    const obj = {
+      metadata: {
+        node: true,
+        import: true,
+        default: true,
+      },
+    };
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(
+      JSON.stringify(
+        {
+          metadata: {
+            default: true,
+            import: true,
+            node: true,
+          },
+        },
+        null,
+        2,
+      ),
+    );
+  });
 });

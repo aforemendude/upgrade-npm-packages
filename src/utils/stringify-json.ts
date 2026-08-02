@@ -1,23 +1,38 @@
-export const stringifyJsonWithSortedKeys = (value: unknown): string => {
-  const keys = new Set<string>();
+type SortContext = 'regular' | 'exports' | 'imports' | 'conditions';
 
-  const collectObjectKeys = (currentValue: unknown): void => {
-    if (currentValue === null || typeof currentValue !== 'object') {
-      return;
-    }
+const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object';
 
-    const objectValue = currentValue as Record<string, unknown>;
-    if (!Array.isArray(currentValue)) {
-      for (const key of Object.keys(objectValue)) {
-        keys.add(key);
+const sortJsonValue = (value: unknown, context: SortContext, isRoot: boolean): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortJsonValue(item, context, false));
+  }
+
+  if (!isObject(value)) {
+    return value;
+  }
+
+  const keys = Object.keys(value);
+  const isConditionalExportsObject = context === 'exports' && keys.every((key) => !key.startsWith('.'));
+  const preserveKeyOrder = context === 'conditions' || isConditionalExportsObject;
+  const orderedKeys = preserveKeyOrder ? keys : [...keys].sort();
+
+  return Object.fromEntries(
+    orderedKeys.map((key) => {
+      let nestedContext: SortContext = 'regular';
+
+      if (isRoot && key === 'exports') {
+        nestedContext = 'exports';
+      } else if (isRoot && key === 'imports') {
+        nestedContext = 'imports';
+      } else if (context === 'exports' || context === 'imports' || context === 'conditions') {
+        nestedContext = 'conditions';
       }
-    }
 
-    for (const nestedValue of Object.values(objectValue)) {
-      collectObjectKeys(nestedValue);
-    }
-  };
+      return [key, sortJsonValue(value[key], nestedContext, false)];
+    }),
+  );
+};
 
-  collectObjectKeys(value);
-  return JSON.stringify(value, [...keys].sort(), 2);
+export const stringifyJsonWithSortedKeys = (value: unknown): string => {
+  return JSON.stringify(sortJsonValue(value, 'regular', true), null, 2);
 };
