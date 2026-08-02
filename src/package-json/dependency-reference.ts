@@ -1,6 +1,5 @@
+import npmPackageArg = require('npm-package-arg');
 import { coerce, minVersion, parse, validRange } from 'semver';
-
-const NPM_ALIAS_PATTERN = /^npm:((?:@[^/\s]+\/)?[^@/\s]+)(?:@(.+))?$/;
 
 export type DependencyUpgradeTarget = {
   formatVersion: (version: string) => string;
@@ -8,14 +7,22 @@ export type DependencyUpgradeTarget = {
   versionReference: string | undefined;
 };
 
+const isUpgradeableRegistryReference = (result: npmPackageArg.Result): result is npmPackageArg.RegistryResult =>
+  result.registry && (result.type === 'version' || result.type === 'range' || result.type === 'tag');
+
 export const resolveDependencyUpgradeTarget = (
   packageName: string,
   versionReference: string,
-): DependencyUpgradeTarget => {
-  const aliasMatch = versionReference.match(NPM_ALIAS_PATTERN);
-  const targetPackageName = aliasMatch?.[1];
+): DependencyUpgradeTarget | undefined => {
+  let parsedReference: ReturnType<typeof npmPackageArg.resolve>;
 
-  if (!targetPackageName) {
+  try {
+    parsedReference = npmPackageArg.resolve(packageName, versionReference);
+  } catch {
+    return undefined;
+  }
+
+  if (isUpgradeableRegistryReference(parsedReference)) {
     return {
       formatVersion: (version) => version,
       packageName,
@@ -23,10 +30,19 @@ export const resolveDependencyUpgradeTarget = (
     };
   }
 
+  if (parsedReference.type !== 'alias' || !isUpgradeableRegistryReference(parsedReference.subSpec)) {
+    return undefined;
+  }
+
+  const targetPackageName = parsedReference.subSpec.name;
+  if (!targetPackageName) {
+    return undefined;
+  }
+
   return {
     formatVersion: (version) => `npm:${targetPackageName}@${version}`,
     packageName: targetPackageName,
-    versionReference: aliasMatch[2],
+    versionReference: versionReference === `npm:${targetPackageName}` ? undefined : parsedReference.subSpec.rawSpec,
   };
 };
 

@@ -15,25 +15,6 @@
 
 ## Findings
 
-### 1. Local and remote non-registry specs can be replaced with a public-registry package
-
-- **Severity:** High
-- **References:** `src/package-json/dependency-reference.ts:3-31`,
-  `src/package-json/upgrade-dependency-section.ts:17-39`, `src/npm/get-latest-version.ts:16-57`,
-  `src/npm/npm-registry.ts:27-29`
-- **Problem:** The only special dependency-spec syntax recognized by `resolveDependencyUpgradeTarget` is an `npm:`
-  alias. Every other reference is sent to `getLatestPackageVersion` under the dependency key. A `file:`, `link:`,
-  `workspace:`, git, HTTP(S), tarball, or path reference is not classified as non-registry and is not skipped. For
-  example, `"shared": "workspace:*"` does not match the exact `'*'` guard, so the code queries registry metadata for
-  `shared` and, if that registry name exists, replaces the workspace reference with an exact registry version.
-- **Impact:** Running the upgrader can silently disconnect a project from its intended local or source-controlled
-  dependency. If a public or squatted package shares the local dependency's name, a later install can fetch and execute
-  that unrelated package, creating a dependency-confusion path in addition to breaking workspace or local-development
-  behavior.
-- **Recommendation:** Parse npm specs by type and only upgrade registry version/range/tag specs plus explicitly
-  supported `npm:` aliases. Preserve and skip `file:`, `link:`, `workspace:`, git, URL, tarball, and path specs. A
-  canonical npm package-spec parser is preferable to maintaining protocol detection with ad hoc SemVer coercion.
-
 ### 2. Force reinstall destroys nested independent projects but reinstalls only the starting directory
 
 - **Severity:** High

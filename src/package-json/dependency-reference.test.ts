@@ -6,12 +6,12 @@ import {
 } from './dependency-reference';
 
 describe('resolveDependencyUpgradeTarget', () => {
-  it('uses the declared package for a regular dependency reference', () => {
-    const target = resolveDependencyUpgradeTarget('typescript', '^5.0.0');
+  it.each(['5.0.0', '^5.0.0', 'latest'])('uses the declared package for the registry reference %p', (reference) => {
+    const target = resolveDependencyUpgradeTarget('typescript', reference);
 
-    expect(target.packageName).toBe('typescript');
-    expect(target.versionReference).toBe('^5.0.0');
-    expect(target.formatVersion('5.1.0')).toBe('5.1.0');
+    expect(target?.packageName).toBe('typescript');
+    expect(target?.versionReference).toBe(reference);
+    expect(target?.formatVersion('5.1.0')).toBe('5.1.0');
   });
 
   it.each([
@@ -23,18 +23,32 @@ describe('resolveDependencyUpgradeTarget', () => {
     (reference, packageName, versionReference, formattedVersion) => {
       const target = resolveDependencyUpgradeTarget('custom-name', reference);
 
-      expect(target.packageName).toBe(packageName);
-      expect(target.versionReference).toBe(versionReference);
-      expect(target.formatVersion('5.1.0')).toBe(formattedVersion);
+      expect(target?.packageName).toBe(packageName);
+      expect(target?.versionReference).toBe(versionReference);
+      expect(target?.formatVersion('5.1.0')).toBe(formattedVersion);
     },
   );
 
-  it('treats malformed npm alias syntax as a regular reference', () => {
+  it('treats an npm alias with an empty version as a wildcard alias', () => {
     const target = resolveDependencyUpgradeTarget('custom-name', 'npm:typescript@');
 
-    expect(target.packageName).toBe('custom-name');
-    expect(target.versionReference).toBe('npm:typescript@');
-    expect(target.formatVersion('5.1.0')).toBe('5.1.0');
+    expect(target?.packageName).toBe('typescript');
+    expect(target?.versionReference).toBe('*');
+    expect(target?.formatVersion('5.1.0')).toBe('npm:typescript@5.1.0');
+  });
+
+  it.each([
+    'workspace:*',
+    'workspace:^1.2.3',
+    'file:../shared',
+    'link:../shared',
+    '../shared',
+    './shared.tgz',
+    'github:owner/repository#v1.2.3',
+    'git+https://github.com/owner/repository.git#v1.2.3',
+    'https://example.com/shared.tgz',
+  ])('does not resolve the non-registry reference %p as an upgrade target', (reference) => {
+    expect(resolveDependencyUpgradeTarget('shared', reference)).toBeUndefined();
   });
 });
 

@@ -51,7 +51,7 @@ describe('upgradeDependencySection', () => {
   it.each([
     ['^1.2.3', '1.2.3'],
     ['>=2', '>=2'],
-    ['workspace:*', 'workspace:*'],
+    ['latest', 'latest'],
   ])('selects and pins a regular dependency from %p', async (currentReference, selectionConstraint) => {
     const section = { package: currentReference };
 
@@ -61,6 +61,27 @@ describe('upgradeDependencySection', () => {
     expect(getLatestPackageVersion).toHaveBeenCalledWith('package', selectionConstraint);
     expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
     expect(section).toEqual({ package: '2.0.0' });
+  });
+
+  it.each([
+    'workspace:*',
+    'workspace:^1.2.3',
+    'file:../shared',
+    'link:../shared',
+    '../shared',
+    './shared.tgz',
+    'github:owner/repository#v1.2.3',
+    'git+https://github.com/owner/repository.git#v1.2.3',
+    'https://example.com/shared.tgz',
+  ])('preserves the non-registry reference %p without a registry lookup', async (currentReference) => {
+    const section = { shared: currentReference };
+
+    await upgradeDependencySection(section);
+
+    expect(getLatestPackageVersion).not.toHaveBeenCalled();
+    expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith('Skipping shared as it does not use a supported npm registry reference');
+    expect(section).toEqual({ shared: currentReference });
   });
 
   it.each([

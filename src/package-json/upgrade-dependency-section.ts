@@ -21,6 +21,11 @@ export const upgradeDependencySection = async (section: DependencySection | unde
     }
 
     const target = resolveDependencyUpgradeTarget(packageName, currentReference);
+    if (!target) {
+      logger.warn(`Skipping ${packageName} as it does not use a supported npm registry reference`);
+      continue;
+    }
+
     if (target.versionReference === '*') {
       logger.warn(`Skipping ${packageName} as it has '*' version`);
       continue;
