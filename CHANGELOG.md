@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.0.0 - 2026-08-02
+
+### Changed
+
+- Require Node.js 20 or newer.
+- Preserve non-registry dependency references, including workspace, file, link, Git, and URL references, instead of
+  replacing them with registry versions.
+- Respect the full declared range for packages with a same-major upgrade policy when that range permits multiple major
+  versions.
+- Preserve conditional key order in `exports` and `imports` while continuing to sort ordinary `package.json` keys.
+- Skip symbolic-link manifests when recursively discovering `package.json` files.
+
+### Added
+
+- Add the MIT license file.
+
 ## 2.1.2 - 2026-08-01
 
 ### Fixed
