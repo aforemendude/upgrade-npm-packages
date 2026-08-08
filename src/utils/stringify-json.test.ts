@@ -71,6 +71,46 @@ describe('stringifyJsonWithSortedKeys', () => {
     expect(Object.keys(obj)).toEqual(['c', 'a', 'b']);
   });
 
+  it('serializes the original object instead of a clone', () => {
+    let receiver: unknown;
+    const obj = {
+      b: 2,
+      a: 1,
+      toJSON() {
+        receiver = this;
+        return { b: this.b, a: this.a };
+      },
+    };
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(JSON.stringify({ a: 1, b: 2 }, null, 2));
+    expect(receiver).toBe(obj);
+  });
+
+  it('sorts frozen objects without violating Proxy invariants', () => {
+    const obj = Object.freeze({
+      z: Object.freeze({ b: 2, a: 1 }),
+      a: 0,
+    });
+
+    expect(stringifyJsonWithSortedKeys(obj)).toBe(
+      JSON.stringify(
+        {
+          a: 0,
+          z: { a: 1, b: 2 },
+        },
+        null,
+        2,
+      ),
+    );
+  });
+
+  it('preserves circular reference detection', () => {
+    const obj: { self?: unknown } = {};
+    obj.self = obj;
+
+    expect(() => stringifyJsonWithSortedKeys(obj)).toThrow(TypeError);
+  });
+
   it('sorts export subpaths while preserving nested conditional export key order', () => {
     const obj = {
       exports: {
