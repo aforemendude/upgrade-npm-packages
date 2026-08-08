@@ -1,9 +1,11 @@
+import * as path from 'path';
 import { findFileSystemEntriesRecursively } from '../utils/find-file-system-entries';
 
 const PACKAGE_LOCK_FILE_NAME = 'package-lock.json';
 const NODE_MODULES_DIRECTORY_NAME = 'node_modules';
 
 export type ReinstallTargets = {
+  installRootPaths: string[];
   lockfilePaths: string[];
   nodeModulesPaths: string[];
 };
@@ -17,11 +19,15 @@ export const findReinstallTargets = async (startingDirectory: string): Promise<R
   });
 
   const targets: ReinstallTargets = {
+    installRootPaths: [],
     lockfilePaths: [],
     nodeModulesPaths: [],
   };
+  const installRootPaths = new Set<string>();
 
   for (const entry of entries) {
+    installRootPaths.add(path.dirname(entry.path));
+
     if (entry.dirent.isDirectory()) {
       targets.nodeModulesPaths.push(entry.path);
     } else {
@@ -29,6 +35,7 @@ export const findReinstallTargets = async (startingDirectory: string): Promise<R
     }
   }
 
+  targets.installRootPaths = [...installRootPaths].sort();
   targets.lockfilePaths.sort();
   targets.nodeModulesPaths.sort();
   return targets;

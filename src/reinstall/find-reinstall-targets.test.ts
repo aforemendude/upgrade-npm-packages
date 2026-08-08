@@ -31,6 +31,7 @@ describe('findReinstallTargets', () => {
     (fs.readdir as any).mockImplementation(async (directory: string) => directoryEntries.get(directory) ?? []);
 
     await expect(findReinstallTargets('/repo')).resolves.toEqual({
+      installRootPaths: ['/repo', '/repo/packages', '/repo/packages/app'],
       lockfilePaths: [
         '/repo/package-lock.json',
         '/repo/packages/app/package-lock.json',

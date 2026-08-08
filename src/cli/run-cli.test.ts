@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PackageJsonSymlinkError } from '../package-json/find-package-json-files';
+import { ReinstallSafetyError } from '../reinstall/force-reinstall-dependencies';
 import { logger } from '../utils/logger';
 import { getHelpMessage } from './get-help-message';
 import { CliUsageError } from './parse-cli-arguments';
@@ -80,6 +81,19 @@ describe('runCli', () => {
     expect(process.exit).toHaveBeenCalledTimes(1);
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(logger.error).toHaveBeenCalledWith('No package.json files found.');
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it('reports an unsafe reinstall result and exits with an error', async () => {
+    const reinstallError = new ReinstallSafetyError(
+      'Skipped npm install because the current working directory is not an install root: /repo.',
+    );
+    vi.mocked(runUpgradeCommand).mockRejectedValueOnce(reinstallError);
+
+    await expect(runCli()).rejects.toThrow('process.exit: 1');
+    expect(process.exit).toHaveBeenCalledTimes(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(logger.error).toHaveBeenCalledWith(reinstallError.message);
     expect(logger.info).not.toHaveBeenCalled();
   });
 

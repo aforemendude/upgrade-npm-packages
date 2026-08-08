@@ -15,26 +15,6 @@
 
 ## Findings
 
-### 2. Force reinstall destroys nested independent projects but reinstalls only the starting directory
-
-- **Severity:** High
-- **References:** `src/reinstall/find-reinstall-targets.ts:11-35`, `src/reinstall/force-reinstall-dependencies.ts:6-23`,
-  `src/utils/find-file-system-entries.ts:15-42`, `src/cli/run-upgrade-command.ts:23-42`
-- **Problem:** The CLI can discover and upgrade package manifests anywhere below `workingDirectory`, and
-  `findReinstallTargets` likewise gathers every nested `package-lock.json` and `node_modules`.
-  `forceReinstallDependencies` deletes all gathered targets but invokes `npm install` exactly once with
-  `workingDirectory`. It does not establish that the starting directory is an npm workspace root or that its install
-  owns the nested projects.
-- **Impact:** When the starting directory contains independent projects, or is merely an aggregation directory without a
-  root npm workspace, the command removes every child project's lockfile and installed dependencies and does not
-  recreate them. This leaves multiple projects broken and loses their resolved dependency state despite the option being
-  described as a reinstall. The README documents the one-install mechanic, but does not make the destructive mismatch
-  safe for non-workspace directory trees.
-- **Recommendation:** Resolve independent install roots and reinstall each one after its own cleanup, or restrict
-  cleanup to a validated root project whose workspace configuration owns all affected manifests. Before deleting
-  anything, fail safely when `cwd` is not an npm project or when nested lockfiles/modules fall outside the validated
-  root workspace.
-
 ### 4. Registry lookups are repeated serially for every dependency occurrence
 
 - **Severity:** Medium
@@ -67,13 +47,6 @@
 - **Recommendation:** Write the complete serialized manifest to a uniquely named temporary file in the same directory,
   preserve the original mode as appropriate, and atomically rename the temporary file over the destination only after a
   successful close. Clean up the temporary file on failure while leaving the original untouched.
-
-## Unresolved questions
-
-- Is `--force-reinstall` intended to support only npm workspace roots? The CLI and README permit starting from any
-  directory tree and describe each discovered manifest as independent, while the reinstall implementation assumes one
-  root install owns every recursively deleted target. The force-reinstall finding does not depend on this answer under
-  the currently documented interface.
 
 ## Checks and areas not covered
 

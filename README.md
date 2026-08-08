@@ -66,9 +66,15 @@ For each `package.json` file it finds, the tool:
 5. Writes the `package.json` with two-space formatting and alphabetically sorted object keys, while preserving the
    matching order of conditional keys in `exports` and `imports`.
 
-When `--force-reinstall` is present, the tool then deletes every discovered `package-lock.json` file and `node_modules`
-directory below the current working directory, and runs `npm install` once in the current working directory. It does
-this once regardless of how many `package.json` files were found.
+When `--force-reinstall` is present, the tool treats each directory containing a discovered `package-lock.json` file or
+`node_modules` directory as an install root, then deletes every such lockfile and directory below the current working
+directory. If the current working directory is an install root, the tool runs `npm install` there once, regardless of
+how many `package.json` files were found. It skips `npm install` when the current working directory is not an install
+root.
+
+After cleanup and the possible install, the command exits with an error if the current working directory was not an
+install root or if other install roots were also cleaned. The error identifies every install root that still requires a
+manual `npm install`.
 
 ## Version Selection
 
@@ -105,6 +111,8 @@ be interpreted as a SemVer major version:
 - If version lookup fails for a dependency, that dependency is skipped.
 - If processing a `package.json` fails, the command stops and exits with an error.
 - When `--force-reinstall` is present, cleanup or `npm install` failure stops the command and exits with an error.
+- After force-reinstall cleanup, the command exits with an actionable error if the current working directory was not an
+  install root or if another cleaned install root was not reinstalled.
 
 ## Project Structure
 

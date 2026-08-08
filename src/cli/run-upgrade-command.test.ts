@@ -93,6 +93,25 @@ describe('runUpgradeCommand', () => {
     ]);
   });
 
+  it('keeps every package.json upgrade when the force reinstall ends with a safety error', async () => {
+    const reinstallSafetyError = new Error('other install roots require a manual npm install');
+    vi.mocked(forceReinstallDependencies).mockRejectedValueOnce(reinstallSafetyError);
+
+    await expect(
+      runUpgradeCommand({
+        args: ['--force-reinstall'],
+        workingDirectory: '/repo',
+      }),
+    ).rejects.toBe(reinstallSafetyError);
+
+    expect(upgradePackageJson).toHaveBeenCalledTimes(2);
+    expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json');
+    expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json');
+    expect(forceReinstallDependencies).toHaveBeenCalledTimes(1);
+    expect(forceReinstallDependencies).toHaveBeenCalledWith('/repo');
+    expect(logger.success).not.toHaveBeenCalled();
+  });
+
   it('allows canonical symlink targets when explicitly requested', async () => {
     vi.mocked(findPackageJsonFiles).mockResolvedValue(['/outside/shared-manifest.json']);
 

@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger';
 import { PackageJsonSymlinkError } from '../package-json/find-package-json-files';
+import { ReinstallSafetyError } from '../reinstall/force-reinstall-dependencies';
 import { getHelpMessage } from './get-help-message';
 import { CliUsageError } from './parse-cli-arguments';
 import { NoPackageJsonFilesError, runUpgradeCommand } from './run-upgrade-command';
@@ -17,7 +18,11 @@ export const runCli = async (): Promise<void> => {
       process.exit(1);
     }
 
-    if (error instanceof PackageJsonSymlinkError || error instanceof NoPackageJsonFilesError) {
+    if (
+      error instanceof PackageJsonSymlinkError ||
+      error instanceof NoPackageJsonFilesError ||
+      error instanceof ReinstallSafetyError
+    ) {
       logger.error(error.message);
       process.exit(1);
     }
