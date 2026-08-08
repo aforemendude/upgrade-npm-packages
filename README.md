@@ -135,8 +135,11 @@ npm run build
 # Check formatting
 npm run format:check
 
-# Format code with Prettier
+# Format code with Prettier, reusing cached results
 npm run format
+
+# Format code with Prettier and clear cached results
+npm run format:nocache
 
 # Run unit tests
 npm run test
@@ -144,6 +147,6 @@ npm run test
 # Run tests in watch mode
 npm run test:watch
 
-# Run formatting, build, and tests
+# Run an uncached formatting check, build, and tests
 npm run verify
 ```

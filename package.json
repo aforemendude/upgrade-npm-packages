@@ -55,8 +55,9 @@
   "scripts": {
     "build": "npm run clean && tsc && node scripts/set-bin-executable.mjs",
     "clean": "node scripts/clean.mjs",
-    "format": "prettier --write .",
+    "format": "prettier --write --cache --cache-strategy metadata .",
     "format:check": "prettier --check .",
+    "format:nocache": "prettier --write .",
     "prepack": "npm install && git diff --exit-code -- package-lock.json && npm run verify",
     "start": "node dist/index.js",
     "test": "vitest run",
