@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.0.0 - 2026-08-08
 
 ### Added
 
@@ -20,7 +20,16 @@
   report cleaned install roots that still require manual installation.
 - Cache npm package metadata and version deprecation lookups for the duration of each upgrade command.
 
+### Fixed
+
+- Exit with a nonzero status when no `package.json` files are found.
+- Stop publishing a `main` entry that points to the CLI executable so importing the package cannot run the command.
+
 ## 3.0.0 - 2026-08-02
+
+### Added
+
+- Add the MIT license file.
 
 ### Changed
 
@@ -31,10 +40,6 @@
   versions.
 - Preserve conditional key order in `exports` and `imports` while continuing to sort ordinary `package.json` keys.
 - Skip symbolic-link manifests when recursively discovering `package.json` files.
-
-### Added
-
-- Add the MIT license file.
 
 ## 2.1.2 - 2026-08-01
 
@@ -84,5 +89,7 @@
 - Pin the earliest published version satisfying an incomplete range when no satisfying version is at least 7 days old.
 
 ## 1.0.1 - 2026-06-04
+
+### Added
 
 - Initial release.
