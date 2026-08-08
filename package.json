@@ -56,11 +56,11 @@
     "build": "rm -rf dist && tsc && chmod +x dist/index.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepack": "npm run verify",
+    "prepack": "npm install && git diff --exit-code -- package-lock.json && npm run verify",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm install && npm run format:check && npm run build && npm run test"
+    "verify": "npm run format:check && npm run build && npm run test"
   },
   "version": "3.0.0"
 }

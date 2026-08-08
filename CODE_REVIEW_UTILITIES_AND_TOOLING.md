@@ -16,22 +16,6 @@
 
 ## Findings
 
-### UTL-004 — Release-time verification installs dependencies and may rewrite the lockfile
-
-- **Severity:** Medium
-- **Location:** `package.json:47-55`
-- **Problem:** `prepack` delegates to `verify`, and `verify` begins with `npm install`. Thus ordinary packaging and
-  publishing run a state-changing dependency installation before the checks. Unlike a clean, immutable install,
-  `npm install` can reconcile and rewrite a stale `package-lock.json`, run dependency lifecycle hooks, and consult the
-  registry rather than exposing dependency drift as a verification failure. A focused default `npm pack --dry-run`
-  confirmed that the prepack path actually invokes this install step.
-- **Impact:** Creating or publishing an otherwise buildable package depends on install-time registry/cache availability
-  and can change the release worktree. Manifest/lockfile inconsistencies can be repaired during verification instead of
-  failing, so the exact dependency state that passed before release is less reproducible and reviewable.
-- **Recommendation:** Make `verify` read-only with respect to dependency state—for example, run only formatting checks,
-  compilation, and tests. Perform `npm ci` as an explicit bootstrap step in a clean CI/release job before invoking
-  `verify`; do not nest dependency installation under `prepack`.
-
 ### UTL-005 — The build and prepack workflows are not portable to Windows
 
 - **Severity:** Medium
