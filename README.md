@@ -81,11 +81,11 @@ For each `package.json` file it finds, the tool:
 Package metadata and version deprecation lookups are cached in memory for the duration of the command, so repeated
 dependencies across sections and manifests reuse the same registry results.
 
-When `--force-reinstall` is present, the tool treats each directory containing a discovered `package-lock.json` file or
-`node_modules` directory as an install root, then deletes every such lockfile and directory below the current working
-directory. If the current working directory is an install root, the tool runs `npm install` there once, regardless of
-how many `package.json` files were found. It skips `npm install` when the current working directory is not an install
-root.
+When `--force-reinstall` is present, the tool treats each directory containing both a discovered `package-lock.json`
+file and `node_modules` directory as an install root. It still deletes every discovered lockfile and `node_modules`
+directory below the current working directory. If the current working directory is an install root, the tool runs
+`npm install` there once, regardless of how many `package.json` files were found. It skips `npm install` when the
+current working directory is not an install root.
 
 After cleanup and the possible install, the command exits with an error if the current working directory was not an
 install root or if other install roots were also cleaned. The error identifies every install root that still requires a

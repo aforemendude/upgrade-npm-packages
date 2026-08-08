@@ -23,19 +23,22 @@ export const findReinstallTargets = async (startingDirectory: string): Promise<R
     lockfilePaths: [],
     nodeModulesPaths: [],
   };
-  const installRootPaths = new Set<string>();
+  const lockfileRootPaths = new Set<string>();
+  const nodeModulesRootPaths = new Set<string>();
 
   for (const entry of entries) {
-    installRootPaths.add(path.dirname(entry.path));
+    const rootPath = path.dirname(entry.path);
 
     if (entry.dirent.isDirectory()) {
+      nodeModulesRootPaths.add(rootPath);
       targets.nodeModulesPaths.push(entry.path);
     } else {
+      lockfileRootPaths.add(rootPath);
       targets.lockfilePaths.push(entry.path);
     }
   }
 
-  targets.installRootPaths = [...installRootPaths].sort();
+  targets.installRootPaths = [...lockfileRootPaths].filter((rootPath) => nodeModulesRootPaths.has(rootPath)).sort();
   targets.lockfilePaths.sort();
   targets.nodeModulesPaths.sort();
   return targets;
