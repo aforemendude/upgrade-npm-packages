@@ -15,24 +15,6 @@
 
 ## Findings
 
-### 4. Registry lookups are repeated serially for every dependency occurrence
-
-- **Severity:** Medium
-- **References:** `src/package-json/upgrade-dependency-section.ts:12-40`, `src/npm/npm-registry.ts:27-50`,
-  `src/npm/select-latest-version.ts:43-72`, `src/npm/get-latest-version.ts:16-57`
-- **Problem:** Each dependency occurrence synchronously starts a fresh `npm view <package> versions time --json`
-  subprocess and one or more deprecation subprocesses. The only deprecation cache is allocated inside one
-  `selectLatestEligibleVersion` call, so it is discarded before the same package is encountered in another section or
-  manifest. There is no metadata or package/version deprecation cache across `dependencies`, `devDependencies`, or
-  recursively processed package manifests, and the `for` loop waits for every lookup before starting the next.
-- **Impact:** Repeated common dependencies in a workspace multiply identical npm process startup, registry traffic,
-  metadata parsing, and deprecation checks. A moderately sized monorepo can incur hundreds or thousands of serial
-  subprocesses, causing avoidable multi-minute runs and unnecessary registry load even though the relevant metadata is
-  identical for the duration of one command.
-- **Recommendation:** Add a run-scoped promise cache for package metadata and for deprecation status keyed by package
-  and version, then perform independent package selection with conservative bounded concurrency. Keep current-reference
-  and same-major filtering per occurrence so caching does not change selection semantics.
-
 ### 5. Manifest replacement is non-atomic and can leave truncated JSON on write failure
 
 - **Severity:** Medium

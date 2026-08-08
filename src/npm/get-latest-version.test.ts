@@ -4,6 +4,7 @@ import spawn from 'cross-spawn';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { logger } from '../utils/logger';
 import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from './get-latest-version';
+import { createCachedNpmRegistry } from './npm-registry';
 
 vi.mock('cross-spawn', () => ({
   default: vi.fn(),
@@ -208,6 +209,30 @@ describe('get-latest-version', () => {
   });
 
   describe('getLatestPackageVersion', () => {
+    it('reuses metadata and deprecation lookups across selections with different current references', async () => {
+      const npmRegistry = createCachedNpmRegistry();
+
+      await expect(
+        Promise.all([
+          getLatestPackageVersion('typescript', undefined, npmRegistry),
+          getLatestPackageVersion('typescript', '4.9.0', npmRegistry),
+        ]),
+      ).resolves.toEqual(['5.0.0', '5.0.0']);
+      expect(spawn).toHaveBeenCalledTimes(2);
+      expect(spawn).toHaveBeenNthCalledWith(
+        1,
+        'npm',
+        ['view', 'typescript', 'versions', 'time', '--json'],
+        expect.objectContaining({ shell: false }),
+      );
+      expect(spawn).toHaveBeenNthCalledWith(
+        2,
+        'npm',
+        ['view', 'typescript@5.0.0', 'deprecated', '--json'],
+        expect.objectContaining({ shell: false }),
+      );
+    });
+
     it('should fetch latest version at least seven days old', async () => {
       const version = await getLatestPackageVersion('typescript');
       expect(version).toBe('5.0.0');

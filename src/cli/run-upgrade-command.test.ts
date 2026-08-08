@@ -42,14 +42,32 @@ describe('runUpgradeCommand', () => {
     expect(logger.setColorEnabled).toHaveBeenCalledWith(true);
     expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: false });
     expect(upgradePackageJson).toHaveBeenCalledTimes(2);
-    expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json');
-    expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json');
+    const npmRegistry = vi.mocked(upgradePackageJson).mock.calls[0]?.[1];
+    expect(npmRegistry).toEqual({
+      getPackageVersionMetadata: expect.any(Function),
+      isPackageVersionDeprecated: expect.any(Function),
+    });
+    expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json', npmRegistry);
+    expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json', npmRegistry);
     expect(forceReinstallDependencies).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(
       'Skipping reinstall. Pass --force-reinstall to refresh package locks and node_modules.',
     );
     expect(logger.success).toHaveBeenCalledTimes(1);
     expect(logger.success).toHaveBeenCalledWith('Finished processing all package.json files.');
+  });
+
+  it('creates a fresh registry cache for each command invocation', async () => {
+    await runUpgradeCommand({ args: [], workingDirectory: '/repo' });
+    const firstRunRegistry = vi.mocked(upgradePackageJson).mock.calls[0]?.[1];
+    vi.mocked(upgradePackageJson).mockClear();
+
+    await runUpgradeCommand({ args: [], workingDirectory: '/repo' });
+    const secondRunRegistry = vi.mocked(upgradePackageJson).mock.calls[0]?.[1];
+
+    expect(firstRunRegistry).toBeDefined();
+    expect(secondRunRegistry).toBeDefined();
+    expect(secondRunRegistry).not.toBe(firstRunRegistry);
   });
 
   it('disables logger colors before logging when explicitly requested', async () => {
@@ -105,8 +123,9 @@ describe('runUpgradeCommand', () => {
     ).rejects.toBe(reinstallSafetyError);
 
     expect(upgradePackageJson).toHaveBeenCalledTimes(2);
-    expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json');
-    expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json');
+    const npmRegistry = vi.mocked(upgradePackageJson).mock.calls[0]?.[1];
+    expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json', npmRegistry);
+    expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json', npmRegistry);
     expect(forceReinstallDependencies).toHaveBeenCalledTimes(1);
     expect(forceReinstallDependencies).toHaveBeenCalledWith('/repo');
     expect(logger.success).not.toHaveBeenCalled();
@@ -122,7 +141,7 @@ describe('runUpgradeCommand', () => {
 
     expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: true });
     expect(upgradePackageJson).toHaveBeenCalledTimes(1);
-    expect(upgradePackageJson).toHaveBeenCalledWith('/outside/shared-manifest.json');
+    expect(upgradePackageJson).toHaveBeenCalledWith('/outside/shared-manifest.json', expect.any(Object));
   });
 
   it('stops before processing any files when a symlink is not explicitly allowed', async () => {
@@ -171,7 +190,7 @@ describe('runUpgradeCommand', () => {
     );
 
     expect(upgradePackageJson).toHaveBeenCalledTimes(1);
-    expect(upgradePackageJson).toHaveBeenCalledWith('/repo/package.json');
+    expect(upgradePackageJson).toHaveBeenCalledWith('/repo/package.json', expect.any(Object));
     expect(forceReinstallDependencies).not.toHaveBeenCalled();
     expect(logger.success).not.toHaveBeenCalled();
   });

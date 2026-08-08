@@ -1,5 +1,6 @@
 import { SAME_MAJOR_UPGRADE_PACKAGES } from '../config/dependency-upgrade-policy';
 import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from '../npm/get-latest-version';
+import { createCachedNpmRegistry, type NpmRegistry } from '../npm/npm-registry';
 import { logger } from '../utils/logger';
 import {
   extractVersionFromReference,
@@ -9,7 +10,10 @@ import {
 
 export type DependencySection = Record<string, string>;
 
-export const upgradeDependencySection = async (section: DependencySection | undefined): Promise<void> => {
+export const upgradeDependencySection = async (
+  section: DependencySection | undefined,
+  npmRegistry: NpmRegistry = createCachedNpmRegistry(),
+): Promise<void> => {
   if (!section) {
     return;
   }
@@ -39,8 +43,8 @@ export const upgradeDependencySection = async (section: DependencySection | unde
     const selectionConstraint =
       usesSameMajorPolicy && !selectsSameMajor ? target.versionReference : (currentVersion ?? target.versionReference);
     const selectedVersion = selectsSameMajor
-      ? await getLatestPackageVersionOfMajor(target.packageName, currentMajor, selectionConstraint)
-      : await getLatestPackageVersion(target.packageName, selectionConstraint);
+      ? await getLatestPackageVersionOfMajor(target.packageName, currentMajor, selectionConstraint, npmRegistry)
+      : await getLatestPackageVersion(target.packageName, selectionConstraint, npmRegistry);
 
     if (selectedVersion) {
       section[packageName] = target.formatVersion(selectedVersion);

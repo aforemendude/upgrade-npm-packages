@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPackageVersionMetadata, isPackageVersionDeprecated } from './npm-registry';
+import {
+  createCachedNpmRegistry,
+  getPackageVersionMetadata,
+  isPackageVersionDeprecated,
+  type NpmRegistry,
+} from './npm-registry';
 import { runNpmCommand } from './run-npm-command';
 
 vi.mock('./run-npm-command', () => ({
@@ -77,6 +82,76 @@ describe('npm-registry', () => {
       vi.mocked(runNpmCommand).mockResolvedValueOnce({ stderr: '', stdout });
 
       await expect(isPackageVersionDeprecated('package', '1.0.0')).resolves.toBe(false);
+    });
+  });
+
+  describe('createCachedNpmRegistry', () => {
+    const metadata = {
+      versions: ['1.0.0'],
+      versionTimes: { '1.0.0': '2025-01-01T00:00:00.000Z' },
+    };
+
+    const createRegistry = (): NpmRegistry => ({
+      getPackageVersionMetadata: vi.fn().mockResolvedValue(metadata),
+      isPackageVersionDeprecated: vi.fn().mockResolvedValue(false),
+    });
+
+    it('reuses in-flight and completed package metadata requests by package name', async () => {
+      const registry = createRegistry();
+      const cachedRegistry = createCachedNpmRegistry(registry);
+
+      const firstRequest = cachedRegistry.getPackageVersionMetadata('package');
+      const secondRequest = cachedRegistry.getPackageVersionMetadata('package');
+
+      expect(secondRequest).toBe(firstRequest);
+      await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([metadata, metadata]);
+      await expect(cachedRegistry.getPackageVersionMetadata('package')).resolves.toBe(metadata);
+      await expect(cachedRegistry.getPackageVersionMetadata('other-package')).resolves.toBe(metadata);
+      expect(registry.getPackageVersionMetadata).toHaveBeenCalledTimes(2);
+      expect(registry.getPackageVersionMetadata).toHaveBeenNthCalledWith(1, 'package');
+      expect(registry.getPackageVersionMetadata).toHaveBeenNthCalledWith(2, 'other-package');
+    });
+
+    it('keys deprecation requests by both package name and version', async () => {
+      const registry = createRegistry();
+      const cachedRegistry = createCachedNpmRegistry(registry);
+
+      const firstRequest = cachedRegistry.isPackageVersionDeprecated('package', '1.0.0');
+      const secondRequest = cachedRegistry.isPackageVersionDeprecated('package', '1.0.0');
+
+      expect(secondRequest).toBe(firstRequest);
+      await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([false, false]);
+      await expect(cachedRegistry.isPackageVersionDeprecated('package', '1.0.0')).resolves.toBe(false);
+      await expect(cachedRegistry.isPackageVersionDeprecated('package', '2.0.0')).resolves.toBe(false);
+      await expect(cachedRegistry.isPackageVersionDeprecated('other-package', '1.0.0')).resolves.toBe(false);
+      expect(registry.isPackageVersionDeprecated).toHaveBeenCalledTimes(3);
+      expect(vi.mocked(registry.isPackageVersionDeprecated).mock.calls).toEqual([
+        ['package', '1.0.0'],
+        ['package', '2.0.0'],
+        ['other-package', '1.0.0'],
+      ]);
+    });
+
+    it('removes failed requests so a later occurrence can retry', async () => {
+      const registryError = new Error('registry unavailable');
+      const registry = createRegistry();
+      vi.mocked(registry.getPackageVersionMetadata)
+        .mockRejectedValueOnce(registryError)
+        .mockResolvedValueOnce(metadata);
+      const cachedRegistry = createCachedNpmRegistry(registry);
+
+      await expect(cachedRegistry.getPackageVersionMetadata('package')).rejects.toBe(registryError);
+      await expect(cachedRegistry.getPackageVersionMetadata('package')).resolves.toBe(metadata);
+      expect(registry.getPackageVersionMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not share entries between cache instances', async () => {
+      const registry = createRegistry();
+
+      await createCachedNpmRegistry(registry).getPackageVersionMetadata('package');
+      await createCachedNpmRegistry(registry).getPackageVersionMetadata('package');
+
+      expect(registry.getPackageVersionMetadata).toHaveBeenCalledTimes(2);
     });
   });
 });

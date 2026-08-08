@@ -15,6 +15,7 @@
 - Emit plain log prefixes for redirected output and when the conventional `NO_COLOR` environment variable is set.
 - Detect install roots during `--force-reinstall`, skip `npm install` when the current working directory is not one, and
   report cleaned install roots that still require manual installation.
+- Cache npm package metadata and version deprecation lookups for the duration of each upgrade command.
 
 ## 3.0.0 - 2026-08-02
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getLatestPackageVersion, getLatestPackageVersionOfMajor } from '../npm/get-latest-version';
+import type { NpmRegistry } from '../npm/npm-registry';
 import { logger } from '../utils/logger';
 import { upgradeDependencySection } from './upgrade-dependency-section';
 
@@ -17,6 +18,11 @@ vi.mock('../utils/logger', () => ({
   },
 }));
 
+const npmRegistry: NpmRegistry = {
+  getPackageVersionMetadata: vi.fn(),
+  isPackageVersionDeprecated: vi.fn(),
+};
+
 describe('upgradeDependencySection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,7 +31,7 @@ describe('upgradeDependencySection', () => {
   });
 
   it('does nothing when the dependency section is absent', async () => {
-    await upgradeDependencySection(undefined);
+    await upgradeDependencySection(undefined, npmRegistry);
 
     expect(getLatestPackageVersion).not.toHaveBeenCalled();
     expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
@@ -38,10 +44,10 @@ describe('upgradeDependencySection', () => {
       wildcard: '*',
     };
 
-    await upgradeDependencySection(section);
+    await upgradeDependencySection(section, npmRegistry);
 
     expect(getLatestPackageVersion).toHaveBeenCalledTimes(1);
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('regular', '1.0.0');
+    expect(getLatestPackageVersion).toHaveBeenCalledWith('regular', '1.0.0', npmRegistry);
     expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith("Skipping wildcard as it has '*' version");
@@ -55,10 +61,10 @@ describe('upgradeDependencySection', () => {
   ])('selects and pins a regular dependency from %p', async (currentReference, selectionConstraint) => {
     const section = { package: currentReference };
 
-    await upgradeDependencySection(section);
+    await upgradeDependencySection(section, npmRegistry);
 
     expect(getLatestPackageVersion).toHaveBeenCalledTimes(1);
-    expect(getLatestPackageVersion).toHaveBeenCalledWith('package', selectionConstraint);
+    expect(getLatestPackageVersion).toHaveBeenCalledWith('package', selectionConstraint, npmRegistry);
     expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
     expect(section).toEqual({ package: '2.0.0' });
   });
@@ -76,7 +82,7 @@ describe('upgradeDependencySection', () => {
   ])('preserves the non-registry reference %p without a registry lookup', async (currentReference) => {
     const section = { shared: currentReference };
 
-    await upgradeDependencySection(section);
+    await upgradeDependencySection(section, npmRegistry);
 
     expect(getLatestPackageVersion).not.toHaveBeenCalled();
     expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
@@ -92,10 +98,15 @@ describe('upgradeDependencySection', () => {
     async (packageName, currentReference, expectedMajor, selectionConstraint) => {
       const section = { [packageName]: currentReference };
 
-      await upgradeDependencySection(section);
+      await upgradeDependencySection(section, npmRegistry);
 
       expect(getLatestPackageVersionOfMajor).toHaveBeenCalledTimes(1);
-      expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith(packageName, expectedMajor, selectionConstraint);
+      expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith(
+        packageName,
+        expectedMajor,
+        selectionConstraint,
+        npmRegistry,
+      );
       expect(getLatestPackageVersion).not.toHaveBeenCalled();
       expect(section).toEqual({ [packageName]: '18.2.0' });
     },
@@ -111,10 +122,10 @@ describe('upgradeDependencySection', () => {
     async (packageName, currentReference, selectionConstraint) => {
       const section = { [packageName]: currentReference };
 
-      await upgradeDependencySection(section);
+      await upgradeDependencySection(section, npmRegistry);
 
       expect(getLatestPackageVersion).toHaveBeenCalledTimes(1);
-      expect(getLatestPackageVersion).toHaveBeenCalledWith(packageName, selectionConstraint);
+      expect(getLatestPackageVersion).toHaveBeenCalledWith(packageName, selectionConstraint, npmRegistry);
       expect(getLatestPackageVersionOfMajor).not.toHaveBeenCalled();
       expect(section).toEqual({ [packageName]: '2.0.0' });
     },
@@ -125,10 +136,10 @@ describe('upgradeDependencySection', () => {
       'node-types': 'npm:@types/node@^18.1.0',
     };
 
-    await upgradeDependencySection(section);
+    await upgradeDependencySection(section, npmRegistry);
 
     expect(getLatestPackageVersionOfMajor).toHaveBeenCalledTimes(1);
-    expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '18.1.0');
+    expect(getLatestPackageVersionOfMajor).toHaveBeenCalledWith('@types/node', 18, '18.1.0', npmRegistry);
     expect(section).toEqual({
       'node-types': 'npm:@types/node@18.2.0',
     });
@@ -138,7 +149,7 @@ describe('upgradeDependencySection', () => {
     vi.mocked(getLatestPackageVersion).mockResolvedValueOnce('');
     const section = { package: '^1.2.3' };
 
-    await upgradeDependencySection(section);
+    await upgradeDependencySection(section, npmRegistry);
 
     expect(section).toEqual({ package: '^1.2.3' });
   });
@@ -148,7 +159,7 @@ describe('upgradeDependencySection', () => {
     vi.mocked(getLatestPackageVersion).mockRejectedValueOnce(selectionError);
     const section = { package: '1.0.0' };
 
-    await expect(upgradeDependencySection(section)).rejects.toBe(selectionError);
+    await expect(upgradeDependencySection(section, npmRegistry)).rejects.toBe(selectionError);
     expect(section).toEqual({ package: '1.0.0' });
   });
 });

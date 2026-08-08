@@ -1,4 +1,5 @@
 import { name, version } from '../../package.json';
+import { createCachedNpmRegistry } from '../npm/npm-registry';
 import { findPackageJsonFiles } from '../package-json/find-package-json-files';
 import { upgradePackageJson } from '../package-json/upgrade-package-json';
 import { forceReinstallDependencies } from '../reinstall/force-reinstall-dependencies';
@@ -42,9 +43,10 @@ export const runUpgradeCommand = async ({ args, workingDirectory }: RunUpgradeCo
     logger.info(`- ${filePath}`);
   }
 
+  const npmRegistry = createCachedNpmRegistry();
   for (const filePath of packageJsonFiles) {
     logger.info(`Processing ${filePath}...`);
-    await upgradePackageJson(filePath);
+    await upgradePackageJson(filePath, npmRegistry);
   }
 
   if (options.forceReinstall) {

@@ -66,6 +66,9 @@ For each `package.json` file it finds, the tool:
 5. Writes the `package.json` with two-space formatting and alphabetically sorted object keys, while preserving the
    matching order of conditional keys in `exports` and `imports`.
 
+Package metadata and version deprecation lookups are cached in memory for the duration of the command, so repeated
+dependencies across sections and manifests reuse the same registry results.
+
 When `--force-reinstall` is present, the tool treats each directory containing a discovered `package-lock.json` file or
 `node_modules` directory as an install root, then deletes every such lockfile and directory below the current working
 directory. If the current working directory is an install root, the tool runs `npm install` there once, regardless of
