@@ -4,12 +4,14 @@ import { CliUsageError, parseCliArguments } from './parse-cli-arguments';
 describe('parseCliArguments', () => {
   it('detects the force reinstall flag', () => {
     expect(parseCliArguments([])).toEqual({
+      allowDirty: false,
       allowSymlinks: false,
       forceReinstall: false,
       help: false,
       noColor: false,
     });
     expect(parseCliArguments(['--force-reinstall'])).toEqual({
+      allowDirty: false,
       allowSymlinks: false,
       forceReinstall: true,
       help: false,
@@ -19,7 +21,18 @@ describe('parseCliArguments', () => {
 
   it('detects the allow symlinks flag', () => {
     expect(parseCliArguments(['--allow-symlinks'])).toEqual({
+      allowDirty: false,
       allowSymlinks: true,
+      forceReinstall: false,
+      help: false,
+      noColor: false,
+    });
+  });
+
+  it('detects the allow dirty flag', () => {
+    expect(parseCliArguments(['--allow-dirty'])).toEqual({
+      allowDirty: true,
+      allowSymlinks: false,
       forceReinstall: false,
       help: false,
       noColor: false,
@@ -28,6 +41,7 @@ describe('parseCliArguments', () => {
 
   it('detects the no color flag', () => {
     expect(parseCliArguments(['--no-color'])).toEqual({
+      allowDirty: false,
       allowSymlinks: false,
       forceReinstall: false,
       help: false,
@@ -37,18 +51,21 @@ describe('parseCliArguments', () => {
 
   it('detects help flags', () => {
     expect(parseCliArguments(['--help'])).toEqual({
+      allowDirty: false,
       allowSymlinks: false,
       forceReinstall: false,
       help: true,
       noColor: false,
     });
     expect(parseCliArguments(['-h'])).toEqual({
+      allowDirty: false,
       allowSymlinks: false,
       forceReinstall: false,
       help: true,
       noColor: false,
     });
-    expect(parseCliArguments(['--allow-symlinks', '--force-reinstall', '--help'])).toEqual({
+    expect(parseCliArguments(['--allow-dirty', '--allow-symlinks', '--force-reinstall', '--help'])).toEqual({
+      allowDirty: true,
       allowSymlinks: true,
       forceReinstall: true,
       help: true,

@@ -4,6 +4,8 @@ A CLI that recursively finds `package.json` files below the current working dire
 `devDependencies`, and optionally performs a clean reinstall from the current working directory.
 
 The command skips `node_modules` directories but otherwise walks all subdirectories from the directory where it is run.
+Before scanning, it requires the surrounding Git worktree to have no tracked, untracked, or submodule changes so any
+tracked manifest damaged by an interrupted write can be restored from Git. Passing `--allow-dirty` bypasses this check.
 By default, finding a symbolic-link manifest stops the command before any files are changed. Passing `--allow-symlinks`
 opts into processing symbolic-link targets even when they are outside the scanned directory. Canonical target paths are
 deduplicated, so a file reached through multiple paths is processed only once.
@@ -12,6 +14,7 @@ deduplicated, so a file reached through multiple paths is processed only once.
 
 - Node.js 20 or newer
 - npm
+- Git, unless the clean-worktree check is bypassed with `--allow-dirty`
 
 ## Installation
 
@@ -31,6 +34,15 @@ upgrade-npm-packages
 
 By default, the CLI only updates discovered `package.json` files. It does not delete lockfiles, delete `node_modules`,
 or run `npm install`.
+
+To allow upgrades outside a clean Git worktree:
+
+```bash
+upgrade-npm-packages --allow-dirty
+```
+
+This bypasses the recovery safety check and permits changes when the worktree is dirty, the current directory is not in
+a Git worktree, or Git is unavailable.
 
 To allow symbolic-link manifests:
 
@@ -108,6 +120,8 @@ be interpreted as a SemVer major version:
 
 ## Failure Behavior
 
+- If Git is unavailable, the current directory is not inside a Git worktree, or that worktree has uncommitted changes,
+  the command exits before discovering or processing manifests unless `--allow-dirty` is passed.
 - If a symbolic-link `package.json` is found without `--allow-symlinks`, the command reports its path and exits before
   processing any manifests.
 - If no `package.json` files are found, the command logs an error and exits without changing files.
@@ -125,6 +139,7 @@ Production code is grouped by responsibility, and tests are colocated with the m
 src/
 ├── cli/           argument parsing, help output, command orchestration, and process lifecycle
 ├── config/        dependency-upgrade policy
+├── git/           clean-worktree safety checks
 ├── npm/           npm command execution, registry access, and version selection
 ├── package-json/  manifest discovery, dependency-reference parsing, and manifest upgrades
 ├── reinstall/     reinstall-target discovery, cleanup, and installation

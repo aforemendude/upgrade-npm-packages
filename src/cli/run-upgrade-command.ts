@@ -1,4 +1,5 @@
 import { name, version } from '../../package.json';
+import { requireCleanGitWorktree } from '../git/require-clean-git-worktree';
 import { createCachedNpmRegistry } from '../npm/npm-registry';
 import { findPackageJsonFiles } from '../package-json/find-package-json-files';
 import { upgradePackageJson } from '../package-json/upgrade-package-json';
@@ -27,6 +28,13 @@ export const runUpgradeCommand = async ({ args, workingDirectory }: RunUpgradeCo
   if (options.help) {
     logger.info(getHelpMessage());
     return;
+  }
+
+  if (options.allowDirty) {
+    logger.warn('Skipping the clean Git worktree check because --allow-dirty was passed.');
+  } else {
+    logger.info('Checking for a clean Git worktree...');
+    await requireCleanGitWorktree(workingDirectory);
   }
 
   logger.info(`Starting search for package.json files in ${workingDirectory}...`);

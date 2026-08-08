@@ -4,12 +4,15 @@
 
 ### Added
 
+- Add `--allow-dirty` to bypass the clean Git worktree safety check.
 - Add `--allow-symlinks` to explicitly permit processing symbolic-link `package.json` targets, including targets outside
   the scanned directory.
 - Add `--no-color` to explicitly disable ANSI colors in CLI output.
 
 ### Changed
 
+- Require a clean Git worktree before processing manifests so interrupted writes to tracked manifests remain recoverable
+  from Git.
 - Reject symbolic-link manifests before changing files unless `--allow-symlinks` is passed.
 - Deduplicate allowed manifests by canonical target path so each file is processed only once.
 - Emit plain log prefixes for redirected output and when the conventional `NO_COLOR` environment variable is set.

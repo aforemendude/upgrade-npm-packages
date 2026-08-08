@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GitWorktreeSafetyError } from '../git/require-clean-git-worktree';
 import { PackageJsonSymlinkError } from '../package-json/find-package-json-files';
 import { ReinstallSafetyError } from '../reinstall/force-reinstall-dependencies';
 import { logger } from '../utils/logger';
@@ -70,6 +71,17 @@ describe('runCli', () => {
     expect(process.exit).toHaveBeenCalledTimes(1);
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(logger.error).toHaveBeenCalledWith(symlinkError.message);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it('reports an unsafe Git worktree and exits with an error', async () => {
+    const worktreeError = new GitWorktreeSafetyError('Git worktree has uncommitted changes.');
+    vi.mocked(runUpgradeCommand).mockRejectedValueOnce(worktreeError);
+
+    await expect(runCli()).rejects.toThrow('process.exit: 1');
+    expect(process.exit).toHaveBeenCalledTimes(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(logger.error).toHaveBeenCalledWith(worktreeError.message);
     expect(logger.info).not.toHaveBeenCalled();
   });
 

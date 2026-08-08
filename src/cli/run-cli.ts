@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { GitWorktreeSafetyError } from '../git/require-clean-git-worktree';
 import { PackageJsonSymlinkError } from '../package-json/find-package-json-files';
 import { ReinstallSafetyError } from '../reinstall/force-reinstall-dependencies';
 import { getHelpMessage } from './get-help-message';
@@ -20,6 +21,7 @@ export const runCli = async (): Promise<void> => {
 
     if (
       error instanceof PackageJsonSymlinkError ||
+      error instanceof GitWorktreeSafetyError ||
       error instanceof NoPackageJsonFilesError ||
       error instanceof ReinstallSafetyError
     ) {

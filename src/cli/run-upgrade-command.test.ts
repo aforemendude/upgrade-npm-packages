@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GitWorktreeSafetyError, requireCleanGitWorktree } from '../git/require-clean-git-worktree';
 import { findPackageJsonFiles } from '../package-json/find-package-json-files';
 import { upgradePackageJson } from '../package-json/upgrade-package-json';
 import { forceReinstallDependencies } from '../reinstall/force-reinstall-dependencies';
@@ -8,6 +9,11 @@ import { NoPackageJsonFilesError, runUpgradeCommand } from './run-upgrade-comman
 
 vi.mock('../package-json/find-package-json-files', () => ({
   findPackageJsonFiles: vi.fn(),
+}));
+
+vi.mock('../git/require-clean-git-worktree', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../git/require-clean-git-worktree')>()),
+  requireCleanGitWorktree: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../package-json/upgrade-package-json', () => ({
@@ -31,6 +37,7 @@ vi.mock('../utils/logger', () => ({
 describe('runUpgradeCommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(requireCleanGitWorktree).mockResolvedValue(undefined);
     vi.mocked(findPackageJsonFiles).mockResolvedValue(['/repo/package.json', '/repo/packages/app/package.json']);
     vi.mocked(forceReinstallDependencies).mockResolvedValue(undefined);
     vi.mocked(upgradePackageJson).mockResolvedValue(undefined);
@@ -40,6 +47,8 @@ describe('runUpgradeCommand', () => {
     await runUpgradeCommand({ args: [], workingDirectory: '/repo' });
 
     expect(logger.setColorEnabled).toHaveBeenCalledWith(true);
+    expect(requireCleanGitWorktree).toHaveBeenCalledTimes(1);
+    expect(requireCleanGitWorktree).toHaveBeenCalledWith('/repo');
     expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: false });
     expect(upgradePackageJson).toHaveBeenCalledTimes(2);
     const npmRegistry = vi.mocked(upgradePackageJson).mock.calls[0]?.[1];
@@ -55,6 +64,27 @@ describe('runUpgradeCommand', () => {
     );
     expect(logger.success).toHaveBeenCalledTimes(1);
     expect(logger.success).toHaveBeenCalledWith('Finished processing all package.json files.');
+  });
+
+  it('stops before discovering files when the Git worktree is dirty', async () => {
+    const worktreeError = new GitWorktreeSafetyError('Git worktree has uncommitted changes.');
+    vi.mocked(requireCleanGitWorktree).mockRejectedValueOnce(worktreeError);
+
+    await expect(runUpgradeCommand({ args: [], workingDirectory: '/repo' })).rejects.toBe(worktreeError);
+
+    expect(requireCleanGitWorktree).toHaveBeenCalledWith('/repo');
+    expect(findPackageJsonFiles).not.toHaveBeenCalled();
+    expect(upgradePackageJson).not.toHaveBeenCalled();
+    expect(forceReinstallDependencies).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
+  });
+
+  it('bypasses the clean Git worktree check when explicitly requested', async () => {
+    await runUpgradeCommand({ args: ['--allow-dirty'], workingDirectory: '/repo' });
+
+    expect(requireCleanGitWorktree).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith('Skipping the clean Git worktree check because --allow-dirty was passed.');
+    expect(upgradePackageJson).toHaveBeenCalledTimes(2);
   });
 
   it('creates a fresh registry cache for each command invocation', async () => {
@@ -163,6 +193,7 @@ describe('runUpgradeCommand', () => {
     });
 
     expect(logger.info).toHaveBeenCalledWith(getHelpMessage());
+    expect(requireCleanGitWorktree).not.toHaveBeenCalled();
     expect(findPackageJsonFiles).not.toHaveBeenCalled();
     expect(upgradePackageJson).not.toHaveBeenCalled();
     expect(forceReinstallDependencies).not.toHaveBeenCalled();

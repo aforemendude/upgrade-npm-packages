@@ -1,10 +1,14 @@
 import { parseArgs } from 'node:util';
 
+export const ALLOW_DIRTY_ARGUMENT = '--allow-dirty';
 export const ALLOW_SYMLINKS_ARGUMENT = '--allow-symlinks';
 export const FORCE_REINSTALL_ARGUMENT = '--force-reinstall';
 export const NO_COLOR_ARGUMENT = '--no-color';
 
 const CLI_OPTIONS = {
+  'allow-dirty': {
+    type: 'boolean',
+  },
   'allow-symlinks': {
     type: 'boolean',
   },
@@ -21,6 +25,7 @@ const CLI_OPTIONS = {
 } as const;
 
 export type CliOptions = {
+  allowDirty: boolean;
   allowSymlinks: boolean;
   forceReinstall: boolean;
   help: boolean;
@@ -43,6 +48,7 @@ export const parseCliArguments = (args: string[]): CliOptions => {
     });
 
     return {
+      allowDirty: values['allow-dirty'] ?? false,
       allowSymlinks: values['allow-symlinks'] ?? false,
       forceReinstall: values['force-reinstall'] ?? false,
       help: values.help ?? false,
