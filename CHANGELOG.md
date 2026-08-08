@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.1 - 2026-08-08
+
+### Fixed
+
+- Require both a `package-lock.json` file and `node_modules` directory before treating a directory as an install root
+  during `--force-reinstall`, while continuing to delete every discovered lockfile and `node_modules` directory.
+
 ## 4.0.0 - 2026-08-08
 
 ### Added
