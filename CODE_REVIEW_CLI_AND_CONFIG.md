@@ -12,22 +12,6 @@
 
 ## Findings
 
-### 1. A `package.json` symlink can redirect writes outside the scanned directory
-
-- **Severity:** Medium
-- **References:** `src/package-json/find-package-json-files.ts:6-12`; `src/utils/find-file-system-entries.ts:15-42`;
-  `src/package-json/upgrade-package-json.ts:12-21`; `README.md:3-7`
-- **Problem:** Discovery excludes directory symlinks because they are not reported by `Dirent.isDirectory()`, but the
-  fallback branch accepts every other directory entry whose name is `package.json` without requiring `entry.isFile()`. A
-  symbolic link named `package.json` is therefore returned. The downstream `fs.readFile()` and `fs.writeFile()` calls
-  follow that link without checking its resolved target.
-- **Impact:** A repository can contain a `package.json` symlink whose target is outside the directory from which the
-  user invoked the CLI. Running the documented command then rewrites that external manifest, violating the advertised
-  “below the current working directory” boundary and potentially corrupting an unrelated project.
-- **Recommendation:** Skip or explicitly reject symbolic-link manifests during discovery (for example, require
-  `entry.isFile()`). If symlink support is intentional, resolve each target and enforce that it remains beneath the
-  canonical starting directory immediately before writing, with protection against link-target changes.
-
 ### 2. Finding no manifests is logged as an error but exits successfully
 
 - **Severity:** Low
