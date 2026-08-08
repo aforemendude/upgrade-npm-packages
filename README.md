@@ -117,6 +117,8 @@ execution are likewise centralized so registry and installation modules do not d
 
 ## Development
 
+Development requires Node.js 22.12 or newer. The published CLI continues to support Node.js 20 or newer.
+
 ```bash
 # Compile TypeScript
 npm run build

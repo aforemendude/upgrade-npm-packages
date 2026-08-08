@@ -16,25 +16,6 @@
 
 ## Findings
 
-### UTL-003 — The Node.js support contracts contradict one another and the locked test toolchain
-
-- **Severity:** Medium
-- **Location:** `README.md:9-12`, `package.json:22-24`, `package-lock.json:26-28`, `package-lock.json:1611-1629`,
-  `package-lock.json:1689-1722`
-- **Problem:** The user-facing requirements claim Node.js 18 or newer, while both the package manifest and lockfile root
-  require Node.js 20 or newer. The latter declaration is still too broad for development: locked Vitest depends on Vite
-  8.1.5, whose engine is `^20.19.0 || >=22.12.0`, while Vitest's own range excludes odd Node releases. The effective
-  locked-toolchain range therefore excludes early Node 20, Node 21, early Node 22, and Node 23 even though the root
-  package accepts all of them. Consequently there is no single, accurate Node contract for installation, runtime use,
-  and the checked-in build/test toolchain.
-- **Impact:** A user following the README can receive `EBADENGINE` warnings or a hard install failure when
-  `engine-strict` is enabled. Contributors on versions accepted by `engines.node`—for example Node 20.0 through 20.18,
-  Node 21, early Node 22, or Node 23—can likewise be unable to install or run the locked test toolchain reliably.
-- **Recommendation:** Decide and document the actual runtime minimum, making `README.md` and `engines.node` agree. Also
-  declare a separate development-toolchain version that satisfies the locked Vitest/Vite chain (for example with the
-  project's version-manager file or npm's development-engine mechanism), and exercise the minimum supported runtime and
-  development versions in automation.
-
 ### UTL-004 — Release-time verification installs dependencies and may rewrite the lockfile
 
 - **Severity:** Medium
