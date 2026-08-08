@@ -16,22 +16,6 @@
 
 ## Findings
 
-### UTL-002 — The package import entry point executes the mutating CLI
-
-- **Severity:** Medium
-- **Location:** `package.json:38`; behavior defined by `src/index.ts:3-5` and reached through `src/cli/run-cli.ts:6-11`
-- **Problem:** `main` advertises `dist/index.js` as the package's programmatic import entry point, but that file is the
-  executable wrapper and unconditionally calls `runCli()`. Importing or requiring the package is therefore not a
-  side-effect-free module load: it starts the CLI in the importing process and uses that process's arguments and current
-  working directory. This is distinct from intentional execution through the correctly declared `bin` command.
-- **Impact:** A tool that imports the package for inspection, metadata discovery, or attempted programmatic use can
-  unexpectedly scan its working directory and rewrite discovered `package.json` files. Even in a directory with no
-  manifest, a focused import probe confirmed that `require()` immediately logged the CLI banner and began the recursive
-  search.
-- **Recommendation:** If the package is CLI-only, remove `main` and expose only `bin`. If programmatic use is intended,
-  point `main` at a side-effect-free API module and keep `src/index.ts` solely as the executable wrapper; alternatively,
-  explicitly guard execution so module imports cannot call `runCli()`.
-
 ### UTL-003 — The Node.js support contracts contradict one another and the locked test toolchain
 
 - **Severity:** Medium

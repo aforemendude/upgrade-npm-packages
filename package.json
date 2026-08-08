@@ -37,7 +37,6 @@
     "cli"
   ],
   "license": "MIT",
-  "main": "./dist/index.js",
   "name": "@aforemendude/upgrade-npm-packages",
   "publishConfig": {
     "access": "public"
