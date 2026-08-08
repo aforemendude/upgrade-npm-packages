@@ -2,12 +2,16 @@ import { parseArgs } from 'node:util';
 
 export const ALLOW_SYMLINKS_ARGUMENT = '--allow-symlinks';
 export const FORCE_REINSTALL_ARGUMENT = '--force-reinstall';
+export const NO_COLOR_ARGUMENT = '--no-color';
 
 const CLI_OPTIONS = {
   'allow-symlinks': {
     type: 'boolean',
   },
   'force-reinstall': {
+    type: 'boolean',
+  },
+  'no-color': {
     type: 'boolean',
   },
   help: {
@@ -20,6 +24,7 @@ export type CliOptions = {
   allowSymlinks: boolean;
   forceReinstall: boolean;
   help: boolean;
+  noColor: boolean;
 };
 
 export class CliUsageError extends Error {
@@ -41,6 +46,7 @@ export const parseCliArguments = (args: string[]): CliOptions => {
       allowSymlinks: values['allow-symlinks'] ?? false,
       forceReinstall: values['force-reinstall'] ?? false,
       help: values.help ?? false,
+      noColor: values['no-color'] ?? false,
     };
   } catch (error) {
     throw new CliUsageError(error instanceof Error ? error.message : String(error));

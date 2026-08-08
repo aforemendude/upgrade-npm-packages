@@ -7,11 +7,13 @@ describe('parseCliArguments', () => {
       allowSymlinks: false,
       forceReinstall: false,
       help: false,
+      noColor: false,
     });
     expect(parseCliArguments(['--force-reinstall'])).toEqual({
       allowSymlinks: false,
       forceReinstall: true,
       help: false,
+      noColor: false,
     });
   });
 
@@ -20,6 +22,16 @@ describe('parseCliArguments', () => {
       allowSymlinks: true,
       forceReinstall: false,
       help: false,
+      noColor: false,
+    });
+  });
+
+  it('detects the no color flag', () => {
+    expect(parseCliArguments(['--no-color'])).toEqual({
+      allowSymlinks: false,
+      forceReinstall: false,
+      help: false,
+      noColor: true,
     });
   });
 
@@ -28,16 +40,19 @@ describe('parseCliArguments', () => {
       allowSymlinks: false,
       forceReinstall: false,
       help: true,
+      noColor: false,
     });
     expect(parseCliArguments(['-h'])).toEqual({
       allowSymlinks: false,
       forceReinstall: false,
       help: true,
+      noColor: false,
     });
     expect(parseCliArguments(['--allow-symlinks', '--force-reinstall', '--help'])).toEqual({
       allowSymlinks: true,
       forceReinstall: true,
       help: true,
+      noColor: false,
     });
   });
 

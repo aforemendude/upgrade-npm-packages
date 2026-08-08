@@ -4,7 +4,7 @@ import { upgradePackageJson } from '../package-json/upgrade-package-json';
 import { forceReinstallDependencies } from '../reinstall/force-reinstall-dependencies';
 import { logger } from '../utils/logger';
 import { getHelpMessage } from './get-help-message';
-import { FORCE_REINSTALL_ARGUMENT, parseCliArguments } from './parse-cli-arguments';
+import { FORCE_REINSTALL_ARGUMENT, NO_COLOR_ARGUMENT, parseCliArguments } from './parse-cli-arguments';
 
 export type RunUpgradeCommandOptions = {
   args: string[];
@@ -12,6 +12,7 @@ export type RunUpgradeCommandOptions = {
 };
 
 export const runUpgradeCommand = async ({ args, workingDirectory }: RunUpgradeCommandOptions): Promise<void> => {
+  logger.setColorEnabled(!args.includes(NO_COLOR_ARGUMENT));
   logger.info(`${name} ${version}`);
 
   const options = parseCliArguments(args);

@@ -20,6 +20,7 @@ vi.mock('../reinstall/force-reinstall-dependencies', () => ({
 
 vi.mock('../utils/logger', () => ({
   logger: {
+    setColorEnabled: vi.fn(),
     info: vi.fn(),
     success: vi.fn(),
     warn: vi.fn(),
@@ -38,6 +39,7 @@ describe('runUpgradeCommand', () => {
   it('upgrades each package.json without reinstalling by default', async () => {
     await runUpgradeCommand({ args: [], workingDirectory: '/repo' });
 
+    expect(logger.setColorEnabled).toHaveBeenCalledWith(true);
     expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: false });
     expect(upgradePackageJson).toHaveBeenCalledTimes(2);
     expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json');
@@ -48,6 +50,24 @@ describe('runUpgradeCommand', () => {
     );
     expect(logger.success).toHaveBeenCalledTimes(1);
     expect(logger.success).toHaveBeenCalledWith('Finished processing all package.json files.');
+  });
+
+  it('disables logger colors before logging when explicitly requested', async () => {
+    await runUpgradeCommand({ args: ['--no-color'], workingDirectory: '/repo' });
+
+    expect(logger.setColorEnabled).toHaveBeenCalledTimes(1);
+    expect(logger.setColorEnabled).toHaveBeenCalledWith(false);
+    expect(logger.info).toHaveBeenCalled();
+  });
+
+  it('disables logger colors before reporting another invalid argument', async () => {
+    await expect(runUpgradeCommand({ args: ['--no-color', '--unknown'], workingDirectory: '/repo' })).rejects.toThrow(
+      "Unknown option '--unknown'",
+    );
+
+    expect(logger.setColorEnabled).toHaveBeenCalledTimes(1);
+    expect(logger.setColorEnabled).toHaveBeenCalledWith(false);
+    expect(logger.info).toHaveBeenCalledTimes(1);
   });
 
   it('runs one force reinstall after upgrading every package.json', async () => {

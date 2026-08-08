@@ -10,6 +10,7 @@ describe('getHelpMessage', () => {
         'Options:',
         '  --allow-symlinks   Allow symbolic-link manifests, including targets outside the scanned directory',
         '  --force-reinstall  Refresh package locks and node_modules after upgrading dependencies',
+        '  --no-color         Disable ANSI colors in output',
         '  -h, --help         Show this help message',
       ].join('\n'),
     );

@@ -47,6 +47,15 @@ To force a clean reinstall after all `package.json` files are updated:
 upgrade-npm-packages --force-reinstall
 ```
 
+To explicitly disable ANSI colors in output:
+
+```bash
+upgrade-npm-packages --no-color
+```
+
+The CLI also disables colors when the applicable output stream is not an interactive terminal, and honors the
+conventional `NO_COLOR` environment variable when it is set to a non-empty value.
+
 For each `package.json` file it finds, the tool:
 
 1. Reads `dependencies` and `devDependencies`.
