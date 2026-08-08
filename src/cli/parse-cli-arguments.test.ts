@@ -41,14 +41,25 @@ describe('parseCliArguments', () => {
     });
   });
 
-  it('reports one unexpected argument with a singular message', () => {
-    expect(() => parseCliArguments(['--unknown'])).toThrow('Unexpected argument: --unknown');
+  it('rejects unknown options in strict mode', () => {
+    const parseUnknownOption = () => parseCliArguments(['--unknown']);
+
+    expect(parseUnknownOption).toThrow(CliUsageError);
+    expect(parseUnknownOption).toThrow("Unknown option '--unknown'");
   });
 
-  it('rejects unexpected arguments', () => {
-    const parseUnexpectedArguments = () => parseCliArguments(['packages/app', '--unknown']);
+  it('rejects positional arguments in strict mode', () => {
+    const parsePositionalArgument = () => parseCliArguments(['packages/app']);
 
-    expect(parseUnexpectedArguments).toThrow(CliUsageError);
-    expect(parseUnexpectedArguments).toThrow('Unexpected arguments: packages/app, --unknown');
+    expect(parsePositionalArgument).toThrow(CliUsageError);
+    expect(parsePositionalArgument).toThrow(
+      "Unexpected argument 'packages/app'. This command does not take positional arguments",
+    );
+  });
+
+  it('rejects values for boolean options in strict mode', () => {
+    expect(() => parseCliArguments(['--force-reinstall=true'])).toThrow(
+      "Option '--force-reinstall' does not take an argument",
+    );
   });
 });

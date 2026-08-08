@@ -1,8 +1,20 @@
+import { parseArgs } from 'node:util';
+
 export const ALLOW_SYMLINKS_ARGUMENT = '--allow-symlinks';
 export const FORCE_REINSTALL_ARGUMENT = '--force-reinstall';
 
-const HELP_ARGUMENTS = new Set(['--help', '-h']);
-const ALLOWED_ARGUMENTS = new Set([ALLOW_SYMLINKS_ARGUMENT, FORCE_REINSTALL_ARGUMENT, ...HELP_ARGUMENTS]);
+const CLI_OPTIONS = {
+  'allow-symlinks': {
+    type: 'boolean',
+  },
+  'force-reinstall': {
+    type: 'boolean',
+  },
+  help: {
+    type: 'boolean',
+    short: 'h',
+  },
+} as const;
 
 export type CliOptions = {
   allowSymlinks: boolean;
@@ -17,21 +29,20 @@ export class CliUsageError extends Error {
   }
 }
 
-const formatUnexpectedArgumentsMessage = (unexpectedArguments: string[]): string => {
-  const noun = unexpectedArguments.length === 1 ? 'argument' : 'arguments';
-  return `Unexpected ${noun}: ${unexpectedArguments.join(', ')}`;
-};
-
 export const parseCliArguments = (args: string[]): CliOptions => {
-  const unexpectedArguments = args.filter((argument) => !ALLOWED_ARGUMENTS.has(argument));
+  try {
+    const { values } = parseArgs({
+      args,
+      options: CLI_OPTIONS,
+      strict: true,
+    });
 
-  if (unexpectedArguments.length > 0) {
-    throw new CliUsageError(formatUnexpectedArgumentsMessage(unexpectedArguments));
+    return {
+      allowSymlinks: values['allow-symlinks'] ?? false,
+      forceReinstall: values['force-reinstall'] ?? false,
+      help: values.help ?? false,
+    };
+  } catch (error) {
+    throw new CliUsageError(error instanceof Error ? error.message : String(error));
   }
-
-  return {
-    allowSymlinks: args.includes(ALLOW_SYMLINKS_ARGUMENT),
-    forceReinstall: args.includes(FORCE_REINSTALL_ARGUMENT),
-    help: args.some((argument) => HELP_ARGUMENTS.has(argument)),
-  };
 };
