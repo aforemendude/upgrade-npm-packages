@@ -53,7 +53,8 @@
     "url": "git+https://github.com/aforemendude/upgrade-npm-packages.git"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && chmod +x dist/index.js",
+    "build": "npm run clean && tsc && node scripts/set-bin-executable.mjs",
+    "clean": "node scripts/clean.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepack": "npm install && git diff --exit-code -- package-lock.json && npm run verify",
