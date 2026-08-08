@@ -132,7 +132,7 @@ Development requires Node.js 22.12 or newer. The published CLI continues to supp
 # Compile TypeScript
 npm run build
 
-# Check formatting
+# Check formatting, reusing cached results
 npm run format:check
 
 # Format code with Prettier, reusing cached results
