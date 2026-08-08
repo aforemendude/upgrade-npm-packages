@@ -4,9 +4,10 @@ import { logger } from '../utils/logger';
 import { getHelpMessage } from './get-help-message';
 import { CliUsageError } from './parse-cli-arguments';
 import { runCli } from './run-cli';
-import { runUpgradeCommand } from './run-upgrade-command';
+import { NoPackageJsonFilesError, runUpgradeCommand } from './run-upgrade-command';
 
-vi.mock('./run-upgrade-command', () => ({
+vi.mock('./run-upgrade-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./run-upgrade-command')>()),
   runUpgradeCommand: vi.fn(),
 }));
 
@@ -68,6 +69,17 @@ describe('runCli', () => {
     expect(process.exit).toHaveBeenCalledTimes(1);
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(logger.error).toHaveBeenCalledWith(symlinkError.message);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it('reports missing package.json files and exits with an error', async () => {
+    const noPackageJsonFilesError = new NoPackageJsonFilesError();
+    vi.mocked(runUpgradeCommand).mockRejectedValueOnce(noPackageJsonFilesError);
+
+    await expect(runCli()).rejects.toThrow('process.exit: 1');
+    expect(process.exit).toHaveBeenCalledTimes(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(logger.error).toHaveBeenCalledWith('No package.json files found.');
     expect(logger.info).not.toHaveBeenCalled();
   });
 

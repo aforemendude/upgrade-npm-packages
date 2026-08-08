@@ -4,7 +4,7 @@ import { upgradePackageJson } from '../package-json/upgrade-package-json';
 import { forceReinstallDependencies } from '../reinstall/force-reinstall-dependencies';
 import { logger } from '../utils/logger';
 import { getHelpMessage } from './get-help-message';
-import { runUpgradeCommand } from './run-upgrade-command';
+import { NoPackageJsonFilesError, runUpgradeCommand } from './run-upgrade-command';
 
 vi.mock('../package-json/find-package-json-files', () => ({
   findPackageJsonFiles: vi.fn(),
@@ -130,12 +130,14 @@ describe('runUpgradeCommand', () => {
     expect(forceReinstallDependencies).not.toHaveBeenCalled();
   });
 
-  it('reports when no package.json files are found', async () => {
+  it('rejects when no package.json files are found', async () => {
     vi.mocked(findPackageJsonFiles).mockResolvedValue([]);
 
-    await runUpgradeCommand({ args: [], workingDirectory: '/repo' });
+    await expect(runUpgradeCommand({ args: [], workingDirectory: '/repo' })).rejects.toMatchObject({
+      name: NoPackageJsonFilesError.name,
+      message: 'No package.json files found.',
+    });
 
-    expect(logger.error).toHaveBeenCalledWith('No package.json files found.');
     expect(upgradePackageJson).not.toHaveBeenCalled();
     expect(forceReinstallDependencies).not.toHaveBeenCalled();
     expect(logger.success).not.toHaveBeenCalled();

@@ -11,6 +11,13 @@ export type RunUpgradeCommandOptions = {
   workingDirectory: string;
 };
 
+export class NoPackageJsonFilesError extends Error {
+  constructor() {
+    super('No package.json files found.');
+    this.name = 'NoPackageJsonFilesError';
+  }
+}
+
 export const runUpgradeCommand = async ({ args, workingDirectory }: RunUpgradeCommandOptions): Promise<void> => {
   logger.setColorEnabled(!args.includes(NO_COLOR_ARGUMENT));
   logger.info(`${name} ${version}`);
@@ -27,8 +34,7 @@ export const runUpgradeCommand = async ({ args, workingDirectory }: RunUpgradeCo
   });
 
   if (packageJsonFiles.length === 0) {
-    logger.error('No package.json files found.');
-    return;
+    throw new NoPackageJsonFilesError();
   }
 
   logger.info(`Found ${packageJsonFiles.length} package.json files:`);
