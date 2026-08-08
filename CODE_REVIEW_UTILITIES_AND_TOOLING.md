@@ -16,20 +16,6 @@
 
 ## Findings
 
-### UTL-005 — The build and prepack workflows are not portable to Windows
-
-- **Severity:** Medium
-- **Location:** `package.json:47-55`
-- **Problem:** The build script directly invokes the POSIX commands `rm -rf` and `chmod`. npm uses `cmd.exe` for scripts
-  on standard Windows installations, where those commands are unavailable. Because `prepack` reaches `build`, the same
-  platform assumption affects both local compilation and package creation.
-- **Impact:** Windows contributors cannot use the documented `npm run build`, `npm run verify`, or normal pack/publish
-  workflows without adding a Unix compatibility shell, despite the project otherwise being a cross-platform Node.js CLI
-  and documenting no operating-system restriction.
-- **Recommendation:** Move cleanup and executable-mode handling into a small cross-platform Node.js build script (using
-  `fs.rm`/`fs.chmod` as appropriate), or use maintained cross-platform tooling. Preserve the shebang and verify the
-  packaged `bin` mode on supported release platforms.
-
 ### UTL-006 — Logger color escapes cannot be disabled and leak into redirected output
 
 - **Severity:** Low
