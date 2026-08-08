@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add `--allow-symlinks` to explicitly permit processing symbolic-link `package.json` targets, including targets outside
+  the scanned directory.
+
+### Changed
+
+- Reject symbolic-link manifests before changing files unless `--allow-symlinks` is passed.
+- Deduplicate allowed manifests by canonical target path so each file is processed only once.
+
 ## 3.0.0 - 2026-08-02
 
 ### Changed

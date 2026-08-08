@@ -21,7 +21,9 @@ export const runUpgradeCommand = async ({ args, workingDirectory }: RunUpgradeCo
   }
 
   logger.info(`Starting search for package.json files in ${workingDirectory}...`);
-  const packageJsonFiles = await findPackageJsonFiles(workingDirectory);
+  const packageJsonFiles = await findPackageJsonFiles(workingDirectory, {
+    allowSymlinks: options.allowSymlinks,
+  });
 
   if (packageJsonFiles.length === 0) {
     logger.error('No package.json files found.');

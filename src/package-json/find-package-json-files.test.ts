@@ -8,6 +8,7 @@ vi.mock('fs/promises', async () => {
   return {
     ...actual,
     readdir: vi.fn(),
+    realpath: vi.fn(),
   };
 });
 
@@ -43,9 +44,42 @@ describe('findPackageJsonFiles', () => {
     expect(fs.readdir).not.toHaveBeenCalledWith('/repo/node_modules', expect.anything());
   });
 
-  it('does not treat a package.json symbolic link as a writable manifest', async () => {
+  it('rejects a package.json symbolic link by default', async () => {
     (fs.readdir as any).mockResolvedValue([createDirent('package.json', 'symbolic-link')]);
 
-    await expect(findPackageJsonFiles('/repo')).resolves.toEqual([]);
+    await expect(findPackageJsonFiles('/repo')).rejects.toThrow(
+      'Refusing to process symbolic-link package.json at /repo/package.json. Pass --allow-symlinks to allow modifying its target.',
+    );
+    expect(fs.realpath).not.toHaveBeenCalled();
+  });
+
+  it('allows symlink targets outside the starting directory and deduplicates canonical files', async () => {
+    const directoryEntries = new Map<string, Dirent[]>([
+      [
+        '/repo',
+        [
+          createDirent('package.json', 'file'),
+          createDirent('packages', 'directory'),
+          createDirent('external', 'directory'),
+        ],
+      ],
+      ['/repo/packages', [createDirent('package.json', 'symbolic-link')]],
+      ['/repo/external', [createDirent('package.json', 'symbolic-link')]],
+    ]);
+    (fs.readdir as any).mockImplementation(async (directory: string) => directoryEntries.get(directory) ?? []);
+    vi.mocked(fs.realpath).mockImplementation(async (filePath) => {
+      const canonicalPaths = new Map([
+        ['/repo/package.json', '/repo/package.json'],
+        ['/repo/packages/package.json', '/repo/package.json'],
+        ['/repo/external/package.json', '/outside/shared-manifest.json'],
+      ]);
+      return canonicalPaths.get(filePath.toString()) ?? filePath.toString();
+    });
+
+    await expect(findPackageJsonFiles('/repo', { allowSymlinks: true })).resolves.toEqual([
+      '/repo/package.json',
+      '/outside/shared-manifest.json',
+    ]);
+    expect(fs.realpath).toHaveBeenCalledTimes(3);
   });
 });

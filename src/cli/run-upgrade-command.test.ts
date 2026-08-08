@@ -38,7 +38,7 @@ describe('runUpgradeCommand', () => {
   it('upgrades each package.json without reinstalling by default', async () => {
     await runUpgradeCommand({ args: [], workingDirectory: '/repo' });
 
-    expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo');
+    expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: false });
     expect(upgradePackageJson).toHaveBeenCalledTimes(2);
     expect(upgradePackageJson).toHaveBeenNthCalledWith(1, '/repo/package.json');
     expect(upgradePackageJson).toHaveBeenNthCalledWith(2, '/repo/packages/app/package.json');
@@ -71,6 +71,31 @@ describe('runUpgradeCommand', () => {
       'upgrade:/repo/packages/app/package.json',
       'reinstall:/repo',
     ]);
+  });
+
+  it('allows canonical symlink targets when explicitly requested', async () => {
+    vi.mocked(findPackageJsonFiles).mockResolvedValue(['/outside/shared-manifest.json']);
+
+    await runUpgradeCommand({
+      args: ['--allow-symlinks'],
+      workingDirectory: '/repo',
+    });
+
+    expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: true });
+    expect(upgradePackageJson).toHaveBeenCalledTimes(1);
+    expect(upgradePackageJson).toHaveBeenCalledWith('/outside/shared-manifest.json');
+  });
+
+  it('stops before processing any files when a symlink is not explicitly allowed', async () => {
+    const symlinkError = new Error('Symbolic-link package.json is not allowed');
+    vi.mocked(findPackageJsonFiles).mockRejectedValueOnce(symlinkError);
+
+    await expect(runUpgradeCommand({ args: [], workingDirectory: '/repo' })).rejects.toBe(symlinkError);
+
+    expect(findPackageJsonFiles).toHaveBeenCalledWith('/repo', { allowSymlinks: false });
+    expect(upgradePackageJson).not.toHaveBeenCalled();
+    expect(forceReinstallDependencies).not.toHaveBeenCalled();
+    expect(logger.success).not.toHaveBeenCalled();
   });
 
   it('prints help without discovering or processing files', async () => {

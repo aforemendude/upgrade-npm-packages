@@ -1,9 +1,11 @@
+export const ALLOW_SYMLINKS_ARGUMENT = '--allow-symlinks';
 export const FORCE_REINSTALL_ARGUMENT = '--force-reinstall';
 
 const HELP_ARGUMENTS = new Set(['--help', '-h']);
-const ALLOWED_ARGUMENTS = new Set([FORCE_REINSTALL_ARGUMENT, ...HELP_ARGUMENTS]);
+const ALLOWED_ARGUMENTS = new Set([ALLOW_SYMLINKS_ARGUMENT, FORCE_REINSTALL_ARGUMENT, ...HELP_ARGUMENTS]);
 
 export type CliOptions = {
+  allowSymlinks: boolean;
   forceReinstall: boolean;
   help: boolean;
 };
@@ -28,6 +30,7 @@ export const parseCliArguments = (args: string[]): CliOptions => {
   }
 
   return {
+    allowSymlinks: args.includes(ALLOW_SYMLINKS_ARGUMENT),
     forceReinstall: args.includes(FORCE_REINSTALL_ARGUMENT),
     help: args.some((argument) => HELP_ARGUMENTS.has(argument)),
   };

@@ -1,10 +1,12 @@
 # Upgrade NPM Packages
 
-A CLI that recursively finds regular `package.json` files below the current working directory, updates their
-`dependencies` and `devDependencies`, and optionally performs a clean reinstall from the current working directory.
+A CLI that recursively finds `package.json` files below the current working directory, updates their `dependencies` and
+`devDependencies`, and optionally performs a clean reinstall from the current working directory.
 
-The command treats every discovered `package.json` independently. It skips `node_modules` directories and symbolic-link
-manifests, but otherwise walks all subdirectories from the directory where the command is run.
+The command skips `node_modules` directories but otherwise walks all subdirectories from the directory where it is run.
+By default, finding a symbolic-link manifest stops the command before any files are changed. Passing `--allow-symlinks`
+opts into processing symbolic-link targets even when they are outside the scanned directory. Canonical target paths are
+deduplicated, so a file reached through multiple paths is processed only once.
 
 ## Requirements
 
@@ -29,6 +31,15 @@ upgrade-npm-packages
 
 By default, the CLI only updates discovered `package.json` files. It does not delete lockfiles, delete `node_modules`,
 or run `npm install`.
+
+To allow symbolic-link manifests:
+
+```bash
+upgrade-npm-packages --allow-symlinks
+```
+
+This option can modify a symlink target outside the current working directory. Omit it to reject symbolic-link manifests
+and exit before changing any files.
 
 To force a clean reinstall after all `package.json` files are updated:
 
@@ -79,6 +90,8 @@ be interpreted as a SemVer major version:
 
 ## Failure Behavior
 
+- If a symbolic-link `package.json` is found without `--allow-symlinks`, the command reports its path and exits before
+  processing any manifests.
 - If no `package.json` files are found, the command logs an error and exits without changing files.
 - If version lookup fails for a dependency, that dependency is skipped.
 - If processing a `package.json` fails, the command stops and exits with an error.

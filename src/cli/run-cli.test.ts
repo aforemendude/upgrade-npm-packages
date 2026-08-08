@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PackageJsonSymlinkError } from '../package-json/find-package-json-files';
 import { logger } from '../utils/logger';
 import { getHelpMessage } from './get-help-message';
 import { CliUsageError } from './parse-cli-arguments';
@@ -57,6 +58,17 @@ describe('runCli', () => {
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(logger.error).toHaveBeenCalledWith('Unexpected argument: --unknown');
     expect(logger.info).toHaveBeenCalledWith(getHelpMessage());
+  });
+
+  it('reports a disallowed package.json symlink and exits with an error', async () => {
+    const symlinkError = new PackageJsonSymlinkError('/repo/packages/app/package.json');
+    vi.mocked(runUpgradeCommand).mockRejectedValueOnce(symlinkError);
+
+    await expect(runCli()).rejects.toThrow('process.exit: 1');
+    expect(process.exit).toHaveBeenCalledTimes(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(logger.error).toHaveBeenCalledWith(symlinkError.message);
+    expect(logger.info).not.toHaveBeenCalled();
   });
 
   it.each([
