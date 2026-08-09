@@ -55,6 +55,27 @@ describe('runNpmCommand', () => {
     await expect(result).rejects.toThrow('npm view exited with code 2\npermission denied');
   });
 
+  it('reports when the command is terminated by a signal', async () => {
+    const child = createMockChild();
+    vi.mocked(spawn).mockReturnValue(child as ReturnType<typeof spawn>);
+
+    const result = runNpmCommand(['install']);
+    child.stderr?.emit('data', 'terminated');
+    child.emit('close', null, 'SIGTERM');
+
+    await expect(result).rejects.toThrow('npm install was terminated by signal SIGTERM\nterminated');
+  });
+
+  it('reports when the command ends without an exit code or signal', async () => {
+    const child = createMockChild();
+    vi.mocked(spawn).mockReturnValue(child as ReturnType<typeof spawn>);
+
+    const result = runNpmCommand(['install']);
+    child.emit('close', null, null);
+
+    await expect(result).rejects.toThrow('npm install ended without reporting an exit code');
+  });
+
   it('propagates a subprocess spawn error', async () => {
     const child = createMockChild();
     const spawnError = new Error('npm executable not found');

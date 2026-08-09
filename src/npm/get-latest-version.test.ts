@@ -301,7 +301,7 @@ describe('get-latest-version', () => {
       expect(version).toBe('');
       expect(logger.error).toHaveBeenCalledTimes(1);
       expect(logger.error).toHaveBeenCalledWith(
-        'Could not fetch the latest version for non-existent-package. Skipping...',
+        'Could not determine an eligible version for non-existent-package. Skipping...',
       );
     });
   });
@@ -326,7 +326,9 @@ describe('get-latest-version', () => {
       const version = await getLatestPackageVersionOfMajor('non-existent-package', 1);
       expect(version).toBe('');
       expect(logger.error).toHaveBeenCalledTimes(1);
-      expect(logger.error).toHaveBeenCalledWith('Could not fetch versions for non-existent-package@1. Skipping...');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Could not determine an eligible version for non-existent-package in major 1. Skipping...',
+      );
     });
   });
 });

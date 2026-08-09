@@ -50,7 +50,7 @@ export const getLatestPackageVersion = async (
 ): Promise<string> =>
   safelyFetchLatestVersion(
     { packageName, currentReference },
-    `Could not fetch the latest version for ${packageName}. Skipping...`,
+    `Could not determine an eligible version for ${packageName}. Skipping...`,
     npmRegistry,
   );
 
@@ -62,6 +62,6 @@ export const getLatestPackageVersionOfMajor = async (
 ): Promise<string> =>
   safelyFetchLatestVersion(
     { packageName, currentReference, major },
-    `Could not fetch versions for ${packageName}@${major}. Skipping...`,
+    `Could not determine an eligible version for ${packageName} in major ${major}. Skipping...`,
     npmRegistry,
   );

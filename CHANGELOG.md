@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.2 - 2026-08-09
+
+### Fixed
+
+- Clarify that install-root detection during `--force-reinstall` is heuristic and report exactly where `npm install` was
+  and was not run.
+- Describe package lookup failures as an inability to determine an eligible version, since either metadata or
+  deprecation lookup may have failed.
+- Report npm commands terminated by a signal without presenting the missing exit code as `null`.
+
 ## 4.0.1 - 2026-08-08
 
 ### Fixed

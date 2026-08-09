@@ -39,18 +39,18 @@ export const forceReinstallDependencies = async (workingDirectory: string): Prom
   }
 
   if (!workingDirectoryIsInstallRoot) {
-    const cleanedInstallRootsMessage =
+    const manualInstallMessage =
       targets.installRootPaths.length === 0
         ? ''
-        : ` Cleaned install roots require a manual npm install: ${targets.installRootPaths.join(', ')}.`;
+        : ` The following directories appeared to be install roots and were cleaned, but npm install was not run in them: ${targets.installRootPaths.join(', ')}. Consider running npm install manually in each listed directory.`;
     throw new ReinstallSafetyError(
-      `Skipped npm install because the current working directory appears to not be an install root: ${workingDirectory}.${cleanedInstallRootsMessage}`,
+      `Skipped npm install because the current working directory appears to not be an install root: ${workingDirectory}.${manualInstallMessage}`,
     );
   }
 
   if (otherInstallRootPaths.length > 0) {
     throw new ReinstallSafetyError(
-      `npm install ran in ${workingDirectory}, but other install roots were found and cleaned without being reinstalled: ${otherInstallRootPaths.join(', ')}. Run npm install manually in each listed directory.`,
+      `npm install ran in ${workingDirectory}. The following other directories appeared to be install roots and were cleaned, but npm install was not run in them: ${otherInstallRootPaths.join(', ')}. Consider running npm install manually in each listed directory.`,
     );
   }
 

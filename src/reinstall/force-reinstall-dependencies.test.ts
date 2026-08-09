@@ -69,7 +69,7 @@ describe('forceReinstallDependencies', () => {
     expect(logger.success).toHaveBeenCalledWith('Successfully reinstalled dependencies in /repo');
   });
 
-  it('deletes every target and installs once in the working directory before rejecting other install roots', async () => {
+  it('deletes every target and installs once in the working directory before rejecting other possible install roots', async () => {
     vi.mocked(findReinstallTargets).mockResolvedValue({
       installRootPaths: ['/repo', '/repo/packages/app'],
       lockfilePaths: ['/repo/package-lock.json', '/repo/packages/app/package-lock.json'],
@@ -86,7 +86,7 @@ describe('forceReinstallDependencies', () => {
     await expect(forceReinstallDependencies('/repo')).rejects.toMatchObject({
       name: ReinstallSafetyError.name,
       message:
-        'npm install ran in /repo, but other install roots were found and cleaned without being reinstalled: /repo/packages/app. Run npm install manually in each listed directory.',
+        'npm install ran in /repo. The following other directories appeared to be install roots and were cleaned, but npm install was not run in them: /repo/packages/app. Consider running npm install manually in each listed directory.',
     });
 
     expect(operations).toEqual([
@@ -111,7 +111,7 @@ describe('forceReinstallDependencies', () => {
     await expect(forceReinstallDependencies('/repo')).rejects.toMatchObject({
       name: ReinstallSafetyError.name,
       message:
-        'Skipped npm install because the current working directory appears to not be an install root: /repo. Cleaned install roots require a manual npm install: /repo/packages/app.',
+        'Skipped npm install because the current working directory appears to not be an install root: /repo. The following directories appeared to be install roots and were cleaned, but npm install was not run in them: /repo/packages/app. Consider running npm install manually in each listed directory.',
     });
 
     expect(fs.rm).toHaveBeenCalledWith('/repo/packages/app/package-lock.json', { force: true });

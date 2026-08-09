@@ -81,15 +81,15 @@ For each `package.json` file it finds, the tool:
 Package metadata and version deprecation lookups are cached in memory for the duration of the command, so repeated
 dependencies across sections and manifests reuse the same registry results.
 
-When `--force-reinstall` is present, the tool treats each directory containing both a discovered `package-lock.json`
-file and `node_modules` directory as an install root. It still deletes every discovered lockfile and `node_modules`
-directory below the current working directory. If the current working directory is an install root, the tool runs
-`npm install` there once, regardless of how many `package.json` files were found. It skips `npm install` when the
-current working directory is not an install root.
+When `--force-reinstall` is present, the tool uses the presence of both a discovered `package-lock.json` file and
+`node_modules` directory as a heuristic that their containing directory is an install root. It still deletes every
+discovered lockfile and `node_modules` directory below the current working directory. If the heuristic identifies the
+current working directory as an install root, the tool runs `npm install` there once, regardless of how many
+`package.json` files were found. Otherwise, it skips `npm install`.
 
-After cleanup and the possible install, the command exits with an error if the current working directory was not an
-install root or if other install roots were also cleaned. The error identifies every install root that still requires a
-manual `npm install`.
+After cleanup and the possible install, the command exits with an error if the heuristic did not identify the current
+working directory as an install root or if it identified other directories that were also cleaned. The error states
+where the tool ran `npm install` and identifies every possible install root where it did not run the command.
 
 ## Version Selection
 
@@ -128,8 +128,8 @@ be interpreted as a SemVer major version:
 - If version lookup fails for a dependency, that dependency is skipped.
 - If processing a `package.json` fails, the command stops and exits with an error.
 - When `--force-reinstall` is present, cleanup or `npm install` failure stops the command and exits with an error.
-- After force-reinstall cleanup, the command exits with an actionable error if the current working directory was not an
-  install root or if another cleaned install root was not reinstalled.
+- After force-reinstall cleanup, the command exits with an actionable error if the current working directory did not
+  appear to be an install root or if `npm install` was not run in another cleaned directory that appeared to be one.
 
 ## Project Structure
 
