@@ -111,7 +111,7 @@ describe('forceReinstallDependencies', () => {
     await expect(forceReinstallDependencies('/repo')).rejects.toMatchObject({
       name: ReinstallSafetyError.name,
       message:
-        'Skipped npm install because the current working directory is not an install root: /repo. Cleaned install roots require a manual npm install: /repo/packages/app.',
+        'Skipped npm install because the current working directory appears to not be an install root: /repo. Cleaned install roots require a manual npm install: /repo/packages/app.',
     });
 
     expect(fs.rm).toHaveBeenCalledWith('/repo/packages/app/package-lock.json', { force: true });

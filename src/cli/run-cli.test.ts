@@ -98,7 +98,7 @@ describe('runCli', () => {
 
   it('reports an unsafe reinstall result and exits with an error', async () => {
     const reinstallError = new ReinstallSafetyError(
-      'Skipped npm install because the current working directory is not an install root: /repo.',
+      'Skipped npm install because the current working directory appears to not be an install root: /repo.',
     );
     vi.mocked(runUpgradeCommand).mockRejectedValueOnce(reinstallError);
 

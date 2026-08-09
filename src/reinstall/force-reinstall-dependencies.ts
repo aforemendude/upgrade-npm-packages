@@ -44,7 +44,7 @@ export const forceReinstallDependencies = async (workingDirectory: string): Prom
         ? ''
         : ` Cleaned install roots require a manual npm install: ${targets.installRootPaths.join(', ')}.`;
     throw new ReinstallSafetyError(
-      `Skipped npm install because the current working directory is not an install root: ${workingDirectory}.${cleanedInstallRootsMessage}`,
+      `Skipped npm install because the current working directory appears to not be an install root: ${workingDirectory}.${cleanedInstallRootsMessage}`,
     );
   }
 
