@@ -1,4 +1,4 @@
-import npmPackageArg = require('npm-package-arg');
+import npmPackageArg from 'npm-package-arg';
 import { coerce, minVersion, parse, subset, validRange } from 'semver';
 
 export type DependencyUpgradeTarget = {
